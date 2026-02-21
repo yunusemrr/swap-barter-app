@@ -1,0 +1,7 @@
+{
+  "name": "TakasLa - Modern Takas Platformu",
+  "description": "Yapay zeka destekli, modern arayüze sahip, Tinder benzeri eşleşme mantığıyla çalışan ürün takas uygulaması.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

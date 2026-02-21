@@ -1,0 +1,1969 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Home, 
+  PlusCircle, 
+  Repeat, 
+  MessageCircle, 
+  User as UserIcon, 
+  Search, 
+  MapPin, 
+  Sparkles, 
+  ArrowRight, 
+  ArrowLeft, 
+  ShoppingBag, 
+  Camera, 
+  Heart, 
+  Settings, 
+  Shield, 
+  LogOut, 
+  Trash2, 
+  Moon, 
+  Sun, 
+  Image as ImageIcon, 
+  CheckCircle, 
+  XCircle, 
+  MoreVertical, 
+  SlidersHorizontal, 
+  Send, 
+  Lock, 
+  Mail, 
+  Loader2, 
+  ChevronDown, 
+  Edit, 
+  RefreshCw, 
+  X, 
+  Star,
+  UserX,
+  UserCog,
+  Bell,
+  Filter
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Product, ViewState, Match, User, Offer } from './types';
+import { INITIAL_MARKET_PRODUCTS, MOCK_USERS, INITIAL_MY_PRODUCTS, MOCK_OFFERS } from './constants';
+import { generateProductDescription } from './services/geminiService';
+import { SwipeDeck } from './components/SwipeDeck';
+
+// Firebase Imports
+import { db, auth } from './firebaseConfig';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
+
+const CITIES = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep", "Şanlıurfa", "Kocaeli", "Samsun", "Trabzon", "Eskişehir", "Mersin", "Diyarbakır"];
+
+const App = () => {
+  // Auth State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot'>('login');
+  
+  // Auth Form State
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // App State
+  const [view, setView] = useState<ViewState | 'profile-settings'>('home');
+  const [matchTab, setMatchTab] = useState<'messages' | 'offers'>('messages');
+  const [profileTab, setProfileTab] = useState<'my' | 'favorites'>('my');
+  
+  // Data States
+  const [marketProducts, setMarketProducts] = useState<Product[]>([]);
+  const [myProducts, setMyProducts] = useState<Product[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [offers, setOffers] = useState<Offer[]>(MOCK_OFFERS); 
+  
+  // Chat State
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState<{text?: string, image?: string, isMe: boolean}[]>([
+      { text: "Selam, takas teklifimi gördün mü?", isMe: true },
+      { text: "Evet, iPhone ile iPad takası mantıklı geldi. Cihazın durumu nasıl?", isMe: false }
+  ]);
+  
+  // Loading & Refresh States
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // New State Features
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Selection States
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null); 
+  const [selectedUser, setSelectedUser] = useState<User | null>(null); 
+  const [showProductSwapSelection, setShowProductSwapSelection] = useState(false); 
+  const [activeMatch, setActiveMatch] = useState<Match | null>(null); 
+  const [selectedMyProductForAction, setSelectedMyProductForAction] = useState<Product | null>(null);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [bannerContent, setBannerContent] = useState<{ message: string; type: 'info' | 'success' | 'warning' | 'error'; icon?: React.ReactNode } | null>(null);
+  
+  // Profile Editing State
+  const [editProfileName, setEditProfileName] = useState('');
+  const [editProfileAvatar, setEditProfileAvatar] = useState('');
+  const profileFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Navigation History for overlay return
+  const [tempReturnProduct, setTempReturnProduct] = useState<Product | null>(null);
+  
+  // Location State
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  
+  // Confirmation Modal State
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'danger' | 'normal';
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Search and Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filters, setFilters] = useState({
+    minPrice: '',
+    maxPrice: '',
+    category: '',
+    condition: '',
+    location: ''
+  });
+
+  // States for Upload & Edit
+  const [isUploading, setIsUploading] = useState(false);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Upload Form State
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    description: '',
+    price: '',
+    images: [] as string[],
+    category: 'Elektronik',
+    condition: 'Yeni Gibi' as const,
+    preferredTradeCategory: ''
+  });
+  const [editingProductId, setEditingProductId] = useState<string | null>(null); 
+
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  // States for Swap Mode
+  const [swapTab, setSwapTab] = useState<'swipe' | 'offers'>('offers');
+  const [selectedMyProductId, setSelectedMyProductId] = useState<string | null>(null);
+  const [swapCandidates, setSwapCandidates] = useState<Product[]>([]);
+  const [newMatch, setNewMatch] = useState<Match | null>(null);
+
+  // Pull to refresh refs
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pullStartY, setPullStartY] = useState(0);
+
+  // --- Auth & Initial Setup Effects ---
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            setCurrentUser(userDoc.data() as User);
+          } else {
+            const fallbackUser: User = {
+              id: firebaseUser.uid,
+              name: firebaseUser.email?.split('@')[0] || 'Kullanıcı',
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+              email: firebaseUser.email || '',
+              location: 'İstanbul',
+              swapCount: 0
+            };
+            setCurrentUser(fallbackUser);
+          }
+          if (view === 'auth') setView('home');
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setCurrentUser({
+              id: firebaseUser.uid,
+              name: firebaseUser.email?.split('@')[0] || 'Kullanıcı',
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+              email: firebaseUser.email || '',
+              location: 'İstanbul',
+              swapCount: 0
+          });
+          if (view === 'auth') setView('home');
+        }
+      } else {
+        setCurrentUser(null);
+        setView('auth');
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    // Update banner content based on current view
+    switch (view) {
+      case 'home':
+        setBannerContent({ message: 'Ana sayfaya hoş geldiniz!', type: 'info', icon: <Home size={18} /> });
+        break;
+      case 'matches':
+        setBannerContent({ message: 'Eşleşmelerinizi ve tekliflerinizi buradan yönetin.', type: 'info', icon: <MessageCircle size={18} /> });
+        break;
+      case 'upload':
+        setBannerContent({ message: 'Yeni bir ürün ekleyin veya mevcut ilanlarınızı düzenleyin.', type: 'info', icon: <PlusCircle size={18} /> });
+        break;
+      case 'swipe':
+        setBannerContent({ message: 'Takaslamak istediğiniz ürünü seçin ve eşleşmeleri keşfedin.', type: 'info', icon: <Repeat size={18} /> });
+        break;
+      case 'profile':
+        setBannerContent({ message: 'Profilinizi görüntüleyin ve ilanlarınızı yönetin.', type: 'info', icon: <UserIcon size={18} /> });
+        break;
+      case 'settings':
+        setBannerContent({ message: 'Uygulama ayarlarınızı buradan değiştirebilirsiniz.', type: 'info', icon: <Settings size={18} /> });
+        break;
+      case 'chat':
+        setBannerContent({ message: `Sohbet: ${activeMatch?.otherUser.name || 'Kullanıcı'}`, type: 'info', icon: <MessageCircle size={18} /> });
+        break;
+      case 'user-profile':
+        setBannerContent({ message: `Kullanıcı Profili: ${selectedUser?.name || 'Kullanıcı'}`, type: 'info', icon: <UserIcon size={18} /> });
+        break;
+      case 'blocked-users':
+        setBannerContent({ message: 'Engellenen kullanıcılarınızı yönetin.', type: 'info', icon: <Shield size={18} /> });
+        break;
+      case 'profile-settings':
+        setBannerContent({ message: 'Profil bilgilerinizi güncelleyin.', type: 'info', icon: <UserCog size={18} /> });
+        break;
+      default:
+        setBannerContent(null);
+    }
+  }, [view, activeMatch, selectedUser]);
+
+  useEffect(() => {
+    if (view === 'profile-settings' && currentUser) {
+        setEditProfileName(currentUser.name);
+        setEditProfileAvatar(currentUser.avatar);
+    }
+  }, [view, currentUser]);
+
+  useEffect(() => {
+    if (selectedProduct) {
+        setIsDescriptionExpanded(false);
+    }
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const productsRef = collection(db, 'products');
+    const q = query(productsRef, orderBy('timestamp', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allProducts: Product[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Product));
+
+      if (allProducts.length === 0) {
+        // Fallback to Mocks if DB is empty
+        setMarketProducts(INITIAL_MARKET_PRODUCTS);
+        setMyProducts(INITIAL_MY_PRODUCTS.map(p => ({...p, userId: currentUser.id})));
+      } else {
+        setMarketProducts(allProducts.filter(p => p.userId !== currentUser.id));
+        setMyProducts(allProducts.filter(p => p.userId === currentUser.id));
+      }
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Firebase fetch error:", error);
+      // Fallback on error
+      setMarketProducts(INITIAL_MARKET_PRODUCTS); 
+      setMyProducts(INITIAL_MY_PRODUCTS.map(p => ({...p, userId: currentUser.id})));
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const matchesRef = collection(db, 'matches');
+    const unsubscribe = onSnapshot(matchesRef, (snapshot) => {
+       const allMatches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
+       setMatches(allMatches); 
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Listen to Offers
+  useEffect(() => {
+    if (!currentUser) return;
+    const offersRef = collection(db, 'offers');
+    const qOffers = query(offersRef, orderBy('timestamp', 'desc'));
+
+    const unsubscribeOffers = onSnapshot(qOffers, (snapshot) => {
+        const allOffers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Offer));
+        const myOffers = allOffers.filter(o => o.fromUserId === currentUser.id || o.toUserId === currentUser.id);
+        
+        if (myOffers.length > 0) {
+            setOffers(myOffers);
+        } else {
+            setOffers(MOCK_OFFERS.filter(o => o.toUserId === 'me' || o.fromUserId === 'me'));
+        }
+    });
+
+    return () => unsubscribeOffers();
+  }, [currentUser]);
+
+  // --- Handlers ---
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsRefreshing(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (contentRef.current?.scrollTop === 0) {
+      setPullStartY(e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const endY = e.changedTouches[0].clientY;
+    if (contentRef.current?.scrollTop === 0 && endY - pullStartY > 100 && !isRefreshing) {
+      handleRefresh();
+    }
+    setPullStartY(0);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      window.location.reload();
+    } catch (err: any) {
+      setAuthError('Giriş başarısız. E-posta veya şifre hatalı.');
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser: User = {
+        id: cred.user.uid,
+        name: name,
+        email: email,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cred.user.uid}`,
+        location: 'İstanbul',
+        swapCount: 0
+      };
+      await setDoc(doc(db, 'users', cred.user.uid), newUser);
+      window.location.reload();
+    } catch (err: any) {
+      setAuthError('Kayıt başarısız. ' + err.message);
+      setAuthLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setAuthError('Lütfen e-posta adresinizi girin.');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+      setAuthMode('login');
+    } catch (err: any) {
+      console.error(err);
+      setAuthError('İşlem başarısız. ' + err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Çıkış Yap',
+      message: 'Hesabınızdan çıkış yapmak istediğinize emin misiniz?',
+      type: 'normal',
+      onConfirm: async () => {
+        try {
+          await signOut(auth);
+          setCurrentUser(null);
+          setEmail('');
+          setPassword('');
+          setView('auth');
+        } catch (error) {
+          console.error("Logout failed:", error);
+          setCurrentUser(null);
+          setView('auth');
+        }
+      }
+    });
+  };
+
+  const handleDeleteAccount = () => {
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Hesabı Sil',
+      message: 'Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
+      type: 'danger',
+      onConfirm: async () => {
+        if (!currentUser) return;
+        try {
+          await deleteDoc(doc(db, 'users', currentUser.id));
+          
+          const user = auth.currentUser;
+          if (user) {
+             try {
+                await user.delete();
+             } catch (authError) {
+                console.error("Auth account deletion failed:", authError);
+             }
+          }
+
+          await signOut(auth);
+          setCurrentUser(null);
+          setView('auth');
+          alert("Hesabınız silindi.");
+        } catch (error) {
+          console.error("Delete account error:", error);
+          alert("Hesap silinirken bir hata oluştu.");
+        }
+      }
+    });
+  };
+
+  const handleUpdateLocation = async (newLocation: string) => {
+     if(currentUser) {
+        const updatedUser = { ...currentUser, location: newLocation };
+        setCurrentUser(updatedUser);
+        setShowLocationModal(false);
+        try {
+            await setDoc(doc(db, 'users', currentUser.id), { location: newLocation }, { merge: true });
+        } catch (e) { console.error(e); }
+     }
+  };
+
+  const toggleFavorite = (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
+    if (favorites.includes(productId)) {
+      setFavorites(favorites.filter(id => id !== productId));
+    } else {
+      setFavorites([...favorites, productId]);
+    }
+  };
+
+  const handleBlockUser = (userToBlock: User) => {
+    if (confirm("Bu kullanıcıyı engellemek istediğinize emin misiniz?")) {
+      if (!blockedUsers.some(u => u.id === userToBlock.id)) {
+        setBlockedUsers([...blockedUsers, userToBlock]);
+      }
+      setView('home');
+      setSelectedUser(null);
+    }
+  };
+
+  const handleUnblockUser = (userId: string) => {
+    setBlockedUsers(blockedUsers.filter(u => u.id !== userId));
+  };
+
+  const handleAIHelp = async () => {
+    if (!uploadForm.title) return;
+    setIsGeneratingAI(true);
+    const mainImage = uploadForm.images.length > 0 ? uploadForm.images[0] : undefined;
+    const desc = await generateProductDescription(uploadForm.title, uploadForm.category, uploadForm.condition, mainImage);
+    setUploadForm(prev => ({ ...prev, description: desc }));
+    setIsGeneratingAI(false);
+  };
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error("Could not get canvas context"));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const processedImages: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const compressed = await compressImage(files[i]);
+          processedImages.push(compressed);
+        } catch (error) {
+          console.error("Error compressing image:", error);
+        }
+      }
+      setUploadForm(prev => ({ 
+        ...prev, 
+        images: [...prev.images, ...processedImages] 
+      }));
+      setShowPhotoOptions(false);
+    }
+  };
+
+  const handleProfileImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+       try {
+          const compressed = await compressImage(e.target.files[0]);
+          setEditProfileAvatar(compressed);
+       } catch (err) {
+          console.error("Image error", err);
+       }
+    }
+  };
+
+  const handleSaveProfile = async () => {
+      if(!currentUser) return;
+      try {
+          await updateDoc(doc(db, 'users', currentUser.id), {
+              name: editProfileName,
+              avatar: editProfileAvatar
+          });
+          setCurrentUser({...currentUser, name: editProfileName, avatar: editProfileAvatar});
+          alert("Profil güncellendi.");
+          setView('settings');
+      } catch (error) {
+          console.error("Error updating profile", error);
+          alert("Hata oluştu.");
+      }
+  };
+
+  const handleChatImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+       try {
+          const img = await compressImage(e.target.files[0]);
+          setChatHistory(prev => [...prev, { image: img, isMe: true }]);
+       } catch (err) {
+          console.error("Image error", err);
+       }
+    }
+  };
+
+  const handleSendLocation = () => {
+     const loc = currentUser?.location || "İstanbul";
+     setChatHistory(prev => [...prev, { text: `📍 Konum: ${loc}, 41.0082° N, 28.9784° E`, isMe: true }]);
+  };
+
+  const removeImage = (indexToRemove: number) => {
+    setUploadForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, index) => index !== indexToRemove)
+    }));
+  };
+
+  const handleUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    setIsUploading(true);
+    
+    const finalImages = uploadForm.images.length > 0 
+      ? uploadForm.images 
+      : [`https://picsum.photos/400/600?random=${Date.now()}`];
+
+    const productData = {
+      userId: currentUser.id, 
+      title: uploadForm.title,
+      description: uploadForm.description,
+      price: Number(uploadForm.price),
+      image: finalImages[0], 
+      images: finalImages, 
+      category: uploadForm.category,
+      condition: uploadForm.condition,
+      preferredTradeCategory: uploadForm.preferredTradeCategory,
+      location: currentUser.location || "İstanbul",
+      userAvatar: currentUser.avatar, 
+      userName: currentUser.name, 
+      timestamp: serverTimestamp()
+    };
+
+    try {
+      if (editingProductId) {
+        await updateDoc(doc(db, 'products', editingProductId), productData);
+        alert("Ürün güncellendi!");
+      } else {
+        await addDoc(collection(db, 'products'), productData);
+        alert("İlan yayınlandı!");
+      }
+      
+      setView('profile');
+      setUploadForm({ title: '', description: '', price: '', images: [], category: 'Elektronik', condition: 'Yeni Gibi', preferredTradeCategory: '' });
+      setEditingProductId(null);
+    } catch (error) {
+      console.error("Error saving product: ", error);
+      alert("İşlem sırasında bir hata oluştu: Dosya boyutu çok büyük olabilir.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCompleteSwap = async () => {
+    if (!selectedProduct || !currentUser) return;
+    
+    if (confirm('Bu ürünü takasladığını onaylıyor musun? Profilinden kaldırılacak ve takas puanın artacak.')) {
+        try {
+            await deleteDoc(doc(db, 'products', selectedProduct.id));
+            
+            const newCount = (currentUser.swapCount || 0) + 1;
+            const userRef = doc(db, 'users', currentUser.id);
+            await updateDoc(userRef, { swapCount: newCount });
+            
+            setCurrentUser({ ...currentUser, swapCount: newCount });
+            
+            setSelectedProduct(null);
+            alert(`Tebrikler! Takas puanın yükseldi: ${newCount}`);
+        } catch (error) {
+            console.error("Error completing swap", error);
+             const newCount = (currentUser.swapCount || 0) + 1;
+             setCurrentUser({ ...currentUser, swapCount: newCount });
+             setMyProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
+             setSelectedProduct(null);
+        }
+    }
+  };
+
+  const handleInitiateSwap = async (myProductId: string) => {
+    if (!selectedProduct || !currentUser) return;
+
+    // Save offer to DB
+    const offerData = {
+        fromUserId: currentUser.id,
+        toUserId: selectedProduct.userId,
+        myProductId: myProductId,
+        offeredProductId: selectedProduct.id,
+        status: 'pending',
+        timestamp: Date.now()
+    };
+
+    try {
+        await addDoc(collection(db, 'offers'), offerData);
+        alert(`Teklif gönderildi: ${myProducts.find(p=>p.id===myProductId)?.title} <-> ${selectedProduct.title}`);
+        setShowProductSwapSelection(false);
+        setSelectedProduct(null);
+    } catch (error) {
+        console.error("Error sending offer:", error);
+        alert("Teklif gönderilirken bir hata oluştu.");
+    }
+  };
+
+  const startSwapSession = (myProduct: Product) => {
+    if (!currentUser) return;
+    setSelectedMyProductId(myProduct.id);
+    const range = 0.3; 
+    const minPrice = myProduct.price * (1 - range);
+    const maxPrice = myProduct.price * (1 + range);
+    
+    const candidates = marketProducts.filter(p => 
+      p.userId !== currentUser.id && 
+      !blockedUsers.some(u => u.id === p.userId) &&
+      p.price >= minPrice && 
+      p.price <= maxPrice
+    );
+    
+    setSwapCandidates(candidates);
+    setSwapTab('swipe');
+    setView('swipe');
+  };
+
+  const handleSwipe = async (direction: 'left' | 'right', product: Product) => {
+    setSwapCandidates(prev => prev.filter(p => p.id !== product.id));
+
+    if (direction === 'right') {
+      const isMatch = Math.random() > 0.3; 
+      
+      if (isMatch && selectedMyProductId) {
+        const matchData = {
+          myProductId: selectedMyProductId,
+          otherProductId: product.id,
+          otherUser: MOCK_USERS.find(u => u.id === product.userId) || { id: product.userId, name: 'Kullanıcı', avatar: 'https://via.placeholder.com/50' },
+          timestamp: Date.now()
+        };
+
+        try {
+           const docRef = await addDoc(collection(db, 'matches'), matchData);
+           const newMatchObj = { id: docRef.id, ...matchData } as Match;
+           setNewMatch(newMatchObj);
+           setTimeout(() => setNewMatch(null), 3000);
+        } catch (e) {
+            console.error("Error saving match", e);
+        }
+      }
+    }
+  };
+
+  const handleOfferResponse = (offerId: string, response: 'accepted' | 'rejected') => {
+    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: response } : o));
+    if (response === 'accepted') {
+       const offer = offers.find(o => o.id === offerId);
+       if(offer) {
+          const match: Match = {
+                id: Date.now().toString(),
+                myProductId: offer.myProductId,
+                otherProductId: offer.offeredProductId,
+                otherUser: MOCK_USERS.find(u => u.id === offer.fromUserId) || MOCK_USERS[0],
+                timestamp: Date.now()
+            };
+            setMatches([match, ...matches]);
+            setNewMatch(match);
+       }
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      minPrice: '',
+      maxPrice: '',
+      category: '',
+      condition: '',
+      location: ''
+    });
+    setSearchQuery('');
+  };
+
+  const handleApplyFilters = () => {
+    setShowFilterModal(false);
+  };
+
+  const handleOpenChat = (match: Match) => {
+    setActiveMatch(match);
+    setView('chat');
+  };
+
+  const handleStartChatFromOffer = (offer: Offer) => {
+    const otherUser = MOCK_USERS.find(u => u.id === offer.fromUserId) || { id: offer.fromUserId, name: 'Kullanıcı', avatar: 'https://via.placeholder.com/50' };
+    const tempMatch: Match = {
+       id: `offer_${offer.id}`,
+       myProductId: offer.myProductId,
+       otherProductId: offer.offeredProductId,
+       otherUser: otherUser,
+       timestamp: Date.now()
+    };
+    setActiveMatch(tempMatch);
+    setView('chat');
+ };
+
+  const handleDeleteProduct = async (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    if (confirm(`${product.title} ilanını silmek istediğine emin misin?`)) {
+      try {
+        await deleteDoc(doc(db, 'products', product.id));
+      } catch (error) {
+        console.error("Error deleting product:", error);
+        alert("Ürün silinirken bir hata oluştu.");
+      }
+    }
+  };
+
+  const handleDeleteCurrentProduct = () => {
+     if(!selectedProduct) return;
+     setConfirmationModal({
+        isOpen: true,
+        title: 'İlanı Sil',
+        message: 'Bu ilanı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
+        type: 'danger',
+        onConfirm: async () => {
+           try {
+               await deleteDoc(doc(db, 'products', selectedProduct.id));
+               setSelectedProduct(null);
+           } catch(e) {
+               console.error("Error deleting", e);
+               alert("Hata oluştu");
+           }
+        }
+     });
+  };
+
+  const handleGoToSellerProfile = (seller: User) => {
+      setTempReturnProduct(selectedProduct);
+      setSelectedProduct(null);
+      setSelectedUser(seller);
+      setView('user-profile');
+  };
+
+  const handleBackFromUserProfile = () => {
+      if (tempReturnProduct) {
+          setView('home'); 
+          setSelectedProduct(tempReturnProduct);
+          setTempReturnProduct(null);
+          setSelectedUser(null);
+      } else {
+          setView('home');
+          setSelectedUser(null);
+      }
+  };
+
+  const handleMyProductAction = (action: 'edit' | 'delete' | 'findMatch', product: Product | null = null) => {
+     const targetProduct = product || selectedMyProductForAction;
+     if(!targetProduct) return;
+     
+     if (action === 'delete') {
+        if(confirm(`${targetProduct.title} ilanını silmek istediğine emin misin?`)) {
+            deleteDoc(doc(db, 'products', targetProduct.id))
+                .catch(console.error);
+        }
+     } else if (action === 'findMatch') {
+        startSwapSession(targetProduct);
+     } else if (action === 'edit') {
+        setUploadForm({
+            title: targetProduct.title,
+            description: targetProduct.description,
+            price: targetProduct.price.toString(),
+            images: targetProduct.images || [targetProduct.image],
+            category: targetProduct.category,
+            condition: targetProduct.condition as any,
+            preferredTradeCategory: targetProduct.preferredTradeCategory || ''
+        });
+        setEditingProductId(targetProduct.id);
+        setSelectedProduct(null);
+        setView('upload');
+     }
+     setSelectedMyProductForAction(null);
+  };
+
+  const handleSendMessage = () => {
+    if (!chatMessage.trim()) return;
+    setChatHistory([...chatHistory, { text: chatMessage, isMe: true }]);
+    setChatMessage('');
+    setTimeout(() => {
+        setChatHistory(prev => [...prev, { text: "Harika, ne zaman buluşabiliriz?", isMe: false }]);
+    }, 2000);
+  };
+
+  const handleDeleteChat = () => {
+    if(confirm("Tüm sohbet geçmişini silmek istediğinize emin misiniz?")) {
+        setChatHistory([]);
+        setShowChatMenu(false);
+    }
+  };
+
+  const handleDeleteMessage = (index: number) => {
+    if(confirm("Bu mesajı silmek istediğinize emin misiniz?")) {
+        setChatHistory(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = 'https://via.placeholder.com/150?text=No+Image';
+  };
+
+  const renderConfirmationModal = () => {
+    if (!confirmationModal || !confirmationModal.isOpen) return null;
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setConfirmationModal(null)}></div>
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }} 
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 relative z-10 shadow-2xl"
+        >
+          <h3 className="font-bold text-xl mb-2 dark:text-white">{confirmationModal.title}</h3>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-6">{confirmationModal.message}</p>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setConfirmationModal(null)} 
+              className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-bold rounded-xl"
+            >
+              İptal
+            </button>
+            <button 
+              onClick={() => {
+                confirmationModal.onConfirm();
+                setConfirmationModal(null);
+              }}
+              className={`flex-1 py-3 font-bold rounded-xl text-white ${confirmationModal.type === 'danger' ? 'bg-red-500' : 'bg-violet-600'}`}
+            >
+              {confirmationModal.type === 'danger' ? 'Sil / Çıkış' : 'Onayla'}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+  
+  // Views
+  const renderHome = () => (
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-zinc-900">
+      <div className="px-4 py-3 flex gap-3 items-center sticky top-0 bg-gray-50 dark:bg-zinc-900 z-10">
+         <div className="flex-1 relative">
+            <Search className="absolute left-3 top-3 text-zinc-400 w-5 h-5" />
+            <input 
+              type="text" 
+              placeholder="Ne arıyorsun?" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-800 rounded-xl border-none shadow-sm outline-none dark:text-white"
+            />
+         </div>
+         <button onClick={() => setShowFilterModal(true)} className="p-3 bg-white dark:bg-zinc-800 rounded-xl shadow-sm dark:text-white">
+            <SlidersHorizontal size={20} />
+         </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-20 no-scrollbar" ref={contentRef} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+         {isRefreshing && (
+            <div className="flex justify-center py-4">
+               <RefreshCw className="animate-spin text-zinc-400" />
+            </div>
+         )}
+         
+         <div className="grid grid-cols-2 gap-4 pt-4">
+            {marketProducts
+              .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map(product => (
+               <motion.div 
+                 key={product.id}
+                 layoutId={product.id}
+                 onClick={() => setSelectedProduct(product)}
+                 className="bg-white dark:bg-zinc-800 rounded-2xl overflow-hidden shadow-sm border border-zinc-100 dark:border-zinc-800 pb-2 cursor-pointer"
+               >
+                  <div className="aspect-[4/5] relative">
+                     <img src={product.image} className="w-full h-full object-cover" loading="lazy" onError={handleImageError} />
+                     <button 
+                       onClick={(e) => toggleFavorite(e, product.id)}
+                       className="absolute top-2 right-2 p-2 bg-black/20 backdrop-blur-md rounded-full text-white"
+                     >
+                       <Heart size={16} className={favorites.includes(product.id) ? "fill-red-500 text-red-500" : ""} />
+                     </button>
+                     {product.condition === 'Yeni Gibi' && (
+                        <span className="absolute bottom-2 left-2 bg-emerald-500 text-white text-[10px] px-2 py-1 rounded-md font-bold shadow-sm">
+                           Yeni Gibi
+                        </span>
+                     )}
+                  </div>
+                  <div className="p-3">
+                     <h3 className="font-bold text-zinc-900 dark:text-white truncate text-sm mb-1">{product.title}</h3>
+                     <p className="text-violet-600 dark:text-violet-400 font-black text-sm">{product.price.toLocaleString('tr-TR')} TL</p>
+                     
+                     <div className="flex items-center gap-2 mt-2">
+                        {product.userAvatar && (
+                           <img src={product.userAvatar} className="w-5 h-5 rounded-full object-cover" onError={handleImageError} />
+                        )}
+                        <div className="flex items-center gap-1 text-zinc-400 text-xs truncate">
+                           <MapPin size={12} />
+                           <span className="truncate">{product.location || 'İstanbul'}</span>
+                        </div>
+                     </div>
+                  </div>
+               </motion.div>
+            ))}
+         </div>
+      </div>
+    </div>
+  );
+
+  const renderProductDetail = () => {
+    if (!selectedProduct) return null;
+    
+    let ownerName = 'Satıcı';
+    let ownerAvatar = 'https://via.placeholder.com/50';
+    let ownerId = selectedProduct.userId;
+
+    const isOwner = currentUser?.id === selectedProduct.userId;
+
+    if (selectedProduct.userAvatar && selectedProduct.userName) {
+        ownerName = selectedProduct.userName;
+        ownerAvatar = selectedProduct.userAvatar;
+    } else if (isOwner && currentUser) {
+        ownerName = currentUser.name;
+        ownerAvatar = currentUser.avatar;
+    } else {
+        const mockOwner = MOCK_USERS.find(u => u.id === selectedProduct.userId);
+        if (mockOwner) {
+            ownerName = mockOwner.name;
+            ownerAvatar = mockOwner.avatar;
+        }
+    }
+    
+    const productOwner = isOwner ? currentUser : MOCK_USERS.find(u => u.id === selectedProduct.userId);
+    const swapCount = productOwner?.swapCount || 12; 
+    
+    const ownerObj: User = { id: ownerId, name: ownerName, avatar: ownerAvatar };
+
+    return (
+      <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-900 flex flex-col animate-in slide-in-from-bottom duration-300">
+        <div className="relative h-1/2">
+           <img src={selectedProduct.image} className="w-full h-full object-cover" onError={handleImageError} />
+           <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent h-24 pointer-events-none"></div>
+           <button onClick={() => setSelectedProduct(null)} className="absolute top-4 left-4 p-2.5 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/30 transition-colors">
+             <ArrowLeft size={20} />
+           </button>
+           <button onClick={(e) => toggleFavorite(e, selectedProduct.id)} className="absolute top-4 right-4 p-2.5 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/30 transition-colors">
+             <Heart size={20} className={favorites.includes(selectedProduct.id) ? "fill-red-500 text-red-500" : ""} />
+           </button>
+           {!isOwner && (
+              <button onClick={() => handleBlockUser(ownerObj)} className="absolute top-4 right-16 p-2.5 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/30 transition-colors">
+                <UserX size={20} />
+              </button>
+           )}
+        </div>
+        
+        <div className="flex-1 p-6 flex flex-col bg-white dark:bg-zinc-900 -mt-6 rounded-t-3xl relative shadow-[0_-5px_20px_rgba(0,0,0,0.1)] no-scrollbar">
+           <div className="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full mx-auto mb-6"></div>
+           
+           <div className="flex justify-between items-start mb-2">
+             <h1 className="text-2xl font-bold text-zinc-900 dark:text-white leading-tight">{selectedProduct.title}</h1>
+             <span className="text-xl font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-lg ml-2 whitespace-nowrap">{selectedProduct.price.toLocaleString('tr-TR')} TL</span>
+           </div>
+           
+           <div className="flex gap-2 mb-6">
+              <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">{selectedProduct.category}</span>
+              <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">{selectedProduct.condition}</span>
+           </div>
+
+           <div 
+              onClick={() => !isOwner && handleGoToSellerProfile(ownerObj)}
+              className={`flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl mb-6 border border-zinc-100 dark:border-zinc-800 ${!isOwner ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''}`}
+           >
+              <img src={ownerAvatar} className="w-12 h-12 rounded-full object-cover" onError={handleImageError} />
+              <div className="flex-1">
+                 <p className="font-bold text-sm text-zinc-900 dark:text-white">{ownerName}</p>
+                 <div className="flex items-center">
+                   <div className="flex text-yellow-400 text-[10px]">★★★★★</div>
+                   <p className="text-xs text-zinc-400 ml-1">({swapCount} Takas)</p>
+                 </div>
+              </div>
+              {!isOwner && <ArrowRight size={16} className="text-zinc-400" />}
+           </div>
+
+           <div className="mb-6 flex-1 overflow-y-auto no-scrollbar cursor-pointer" onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}>
+             <div className="flex justify-between items-baseline mb-2">
+                <h3 className="font-semibold text-zinc-900 dark:text-white text-sm">Açıklama</h3>
+                {!isDescriptionExpanded && (
+                    <span className="text-xs text-violet-600 font-bold">Devamını Oku</span>
+                )}
+             </div>
+             <p className={`text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed transition-all duration-200 ${isDescriptionExpanded ? '' : 'line-clamp-3'}`}>
+                {selectedProduct.description}
+             </p>
+             {isDescriptionExpanded && (
+                 <span className="text-xs text-violet-600 font-bold mt-2 block">Daha Az Göster</span>
+             )}
+           </div>
+
+           {isOwner ? (
+             <div className="flex gap-3 mt-auto pb-safe pt-2">
+                <button 
+                  onClick={handleCompleteSwap}
+                  className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+                >
+                   <CheckCircle size={20} />
+                   Takaslandı
+                </button>
+                <button 
+                  onClick={() => handleMyProductAction('edit', selectedProduct)}
+                  className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                >
+                   <Edit size={20} />
+                </button>
+                <button 
+                  onClick={handleDeleteCurrentProduct}
+                  className="flex-1 py-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                >
+                   <Trash2 size={20} />
+                </button>
+             </div>
+           ) : (
+             <div className="flex gap-3 mt-auto pb-safe pt-2">
+                <button 
+                  onClick={() => setShowProductSwapSelection(true)}
+                  className="flex-1 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
+                >
+                   <Repeat size={20} />
+                   Takas Teklif Et
+                </button>
+                <button 
+                  onClick={() => { setView('matches'); setSelectedProduct(null); }}
+                  className="flex-1 py-4 bg-violet-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-violet-200 dark:shadow-violet-900/20 active:scale-95 transition-transform"
+                >
+                   <MessageCircle size={20} />
+                   Mesaj At
+                </button>
+             </div>
+           )}
+        </div>
+
+        {showProductSwapSelection && (
+          <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end">
+             <div className="bg-white dark:bg-zinc-900 w-full rounded-t-3xl p-6 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom">
+                <div className="flex justify-between items-center mb-4">
+                   <h3 className="font-bold text-lg">Takaslanacak Ürünü Seç</h3>
+                   <button onClick={() => setShowProductSwapSelection(false)}><XCircle className="text-zinc-400 hover:text-zinc-600" /></button>
+                </div>
+                <div className="space-y-3 overflow-y-auto p-1 no-scrollbar">
+                   {myProducts.map(p => (
+                      <div key={p.id} onClick={() => handleInitiateSwap(p.id)} className="flex items-center gap-3 p-3 border border-zinc-200 dark:border-zinc-700 rounded-2xl cursor-pointer hover:border-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/10 transition-colors">
+                         <img src={p.image} className="w-14 h-14 rounded-xl object-cover" onError={handleImageError} />
+                         <div className="flex-1">
+                            <p className="font-bold text-sm text-zinc-900 dark:text-white">{p.title}</p>
+                            <p className="text-xs text-emerald-500 font-semibold">{p.price.toLocaleString('tr-TR')} TL</p>
+                         </div>
+                         <ArrowRight size={16} className="text-zinc-300" />
+                      </div>
+                   ))}
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderMatches = () => (
+    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+       <div className="px-6 py-4">
+          <h2 className="text-2xl font-bold mb-4 dark:text-white">Gelen Kutusu</h2>
+          <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
+             <button onClick={() => setMatchTab('messages')} className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${matchTab === 'messages' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500'}`}>Mesajlar</button>
+             <button onClick={() => setMatchTab('offers')} className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${matchTab === 'offers' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500'}`}>Teklifler</button>
+          </div>
+       </div>
+       <div className="flex-1 overflow-y-auto px-6">
+          {matchTab === 'messages' ? matches.map(m => (
+             <div key={m.id} onClick={() => handleOpenChat(m)} className="flex items-center gap-4 py-4 border-b border-zinc-100 dark:border-zinc-800 cursor-pointer">
+                <img src={m.otherUser.avatar} className="w-14 h-14 rounded-full object-cover" />
+                <div className="flex-1">
+                   <h4 className="font-bold dark:text-white">{m.otherUser.name}</h4>
+                   <p className="text-sm text-zinc-500 truncate">Harika, ne zaman buluşabiliriz?</p>
+                </div>
+                <span className="text-xs text-zinc-400">12dk</span>
+             </div>
+          )) : offers.map(o => {
+             const isMyOffer = o.fromUserId === currentUser?.id;
+             const otherUserId = isMyOffer ? o.toUserId : o.fromUserId;
+             const otherUser = MOCK_USERS.find(u => u.id === otherUserId) || (otherUserId === currentUser?.id ? currentUser : { id: otherUserId, name: 'Kullanıcı', avatar: 'https://via.placeholder.com/50' });
+             
+             const senderProduct = (isMyOffer ? myProducts : marketProducts).find(p => p.id === o.myProductId) || (isMyOffer ? INITIAL_MY_PRODUCTS[0] : INITIAL_MARKET_PRODUCTS[0]);
+             const receiverProduct = (isMyOffer ? marketProducts : myProducts).find(p => p.id === o.offeredProductId) || (isMyOffer ? INITIAL_MARKET_PRODUCTS[0] : INITIAL_MY_PRODUCTS[0]);
+             
+             return (
+                 <div key={o.id} className="py-4 border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-3 mb-3">
+                       <img src={otherUser?.avatar} className="w-10 h-10 rounded-full object-cover" />
+                       <div>
+                          <p className="font-bold text-sm dark:text-white">{otherUser?.name}</p>
+                          <p className="text-xs text-zinc-500">{isMyOffer ? 'Teklif Gönderdin' : 'Takas Teklifi'}</p>
+                       </div>
+                    </div>
+                    
+                    <div 
+                        className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl mb-4 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                        onClick={() => setSelectedProduct(isMyOffer ? receiverProduct : senderProduct)}
+                    >
+                         <div className="relative">
+                            <img src={isMyOffer ? senderProduct.image : receiverProduct.image} className="w-14 h-14 rounded-lg object-cover" />
+                            <div className="absolute -bottom-1 -left-1 bg-zinc-900 text-white text-[8px] px-1 rounded-sm font-bold">SENİN</div>
+                         </div>
+                         
+                         <div className="flex flex-col items-center gap-1">
+                            <RefreshCw size={16} className="text-zinc-400" />
+                            <span className="text-[10px] text-zinc-400 font-bold">DEĞİŞİM</span>
+                         </div>
+                         
+                         <div className="relative">
+                             <img src={isMyOffer ? receiverProduct.image : senderProduct.image} className="w-14 h-14 rounded-lg object-cover" />
+                             <div className="absolute -bottom-1 -right-1 bg-violet-600 text-white text-[8px] px-1 rounded-sm font-bold">TEKLİF</div>
+                         </div>
+                    </div>
+                    
+                    {o.status === 'pending' ? (
+                       <div className="flex gap-2">
+                          <button onClick={() => handleStartChatFromOffer(o)} className="flex-[2] py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2">
+                             <MessageCircle size={16} /> Sohbet Et
+                          </button>
+                          {!isMyOffer && (
+                             <button onClick={() => handleOfferResponse(o.id, 'accepted')} className="flex-[3] py-3 bg-violet-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-violet-200 dark:shadow-violet-900/20">
+                                Kabul Et
+                             </button>
+                          )}
+                          {isMyOffer && (
+                             <button className="flex-[3] py-3 bg-zinc-200 text-zinc-500 rounded-xl font-bold text-xs cursor-default">
+                                Bekleniyor
+                             </button>
+                          )}
+                       </div>
+                    ) : (
+                       <div className={`text-center py-3 rounded-xl font-bold text-sm ${o.status === 'accepted' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'}`}>
+                          {o.status === 'accepted' ? 'Kabul Edildi' : 'Reddedildi'}
+                       </div>
+                    )}
+                 </div>
+             );
+          })}
+       </div>
+    </div>
+  );
+
+  const renderAuth = () => (
+    <div className="min-h-screen bg-white dark:bg-zinc-900 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-black text-violet-600 mb-2">TakasLa</h1>
+          <p className="text-zinc-500 dark:text-zinc-400">Eşyalarını takasla, yenilerini keşfet.</p>
+        </div>
+        
+        {authError && (
+          <div className="bg-red-50 text-red-500 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2">
+            <XCircle size={16} />
+            {authError}
+          </div>
+        )}
+
+        <form onSubmit={authMode === 'login' ? handleLogin : authMode === 'signup' ? handleSignup : handleForgotPassword} className="space-y-4">
+          {authMode === 'signup' && (
+             <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                <UserIcon className="text-zinc-400" size={20} />
+                <input 
+                  type="text" 
+                  placeholder="Ad Soyad"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="bg-transparent flex-1 outline-none text-zinc-900 dark:text-white placeholder-zinc-400"
+                  required
+                />
+             </div>
+          )}
+          
+          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
+             <Mail className="text-zinc-400" size={20} />
+             <input 
+               type="email" 
+               placeholder="E-posta"
+               value={email}
+               onChange={e => setEmail(e.target.value)}
+               className="bg-transparent flex-1 outline-none text-zinc-900 dark:text-white placeholder-zinc-400"
+               required
+             />
+          </div>
+
+          {authMode !== 'forgot' && (
+            <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
+               <Lock className="text-zinc-400" size={20} />
+               <input 
+                 type="password" 
+                 placeholder="Şifre"
+                 value={password}
+                 onChange={e => setPassword(e.target.value)}
+                 className="bg-transparent flex-1 outline-none text-zinc-900 dark:text-white placeholder-zinc-400"
+                 required
+               />
+            </div>
+          )}
+
+          <button 
+             disabled={authLoading}
+             type="submit" 
+             className="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-violet-200 dark:shadow-violet-900/20 active:scale-95 transition-transform disabled:opacity-50"
+          >
+             {authLoading ? <Loader2 className="animate-spin mx-auto" /> : (authMode === 'login' ? 'Giriş Yap' : authMode === 'signup' ? 'Kayıt Ol' : 'Şifremi Sıfırla')}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center space-y-2">
+           {authMode === 'login' && (
+              <>
+                 <button onClick={() => setAuthMode('signup')} className="text-zinc-500 font-bold text-sm block w-full">Hesabın yok mu? <span className="text-violet-600">Kayıt Ol</span></button>
+                 <button onClick={() => setAuthMode('forgot')} className="text-zinc-400 text-xs font-semibold">Şifremi Unuttum</button>
+              </>
+           )}
+           {authMode === 'signup' && (
+              <button onClick={() => setAuthMode('login')} className="text-zinc-500 font-bold text-sm">Zaten hesabın var mı? <span className="text-violet-600">Giriş Yap</span></button>
+           )}
+           {authMode === 'forgot' && (
+              <button onClick={() => setAuthMode('login')} className="text-zinc-500 font-bold text-sm">Giriş ekranına dön</button>
+           )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderUpload = () => (
+    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+       <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+          <h2 className="text-xl font-bold dark:text-white">{editingProductId ? 'İlanı Düzenle' : 'Yeni İlan'}</h2>
+          <button onClick={() => setView('home')}><X className="text-zinc-400" /></button>
+       </div>
+       <div className="flex-1 overflow-y-auto p-6">
+          <form onSubmit={handleUploadSubmit} className="space-y-6">
+             <div>
+                <label className="block text-sm font-bold text-zinc-500 mb-2">Fotoğraflar</label>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                   {uploadForm.images.map((img, idx) => (
+                      <div key={idx} className="relative w-24 h-24 flex-shrink-0">
+                         <img src={img} className="w-full h-full object-cover rounded-xl" />
+                         <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"><X size={12} /></button>
+                      </div>
+                   ))}
+                   <button type="button" onClick={() => setShowPhotoOptions(true)} className="w-24 h-24 bg-zinc-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-300 dark:border-zinc-700">
+                      <Camera size={24} />
+                   </button>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleImageSelect} 
+                  className="hidden" 
+                  accept="image/*"
+                  multiple
+                />
+                {showPhotoOptions && (
+                   <div className="mt-2 flex gap-2">
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs bg-violet-100 text-violet-600 px-3 py-1 rounded-lg font-bold">Galeri</button>
+                      <button type="button" onClick={() => setShowPhotoOptions(false)} className="text-xs text-zinc-400 px-3 py-1">İptal</button>
+                   </div>
+                )}
+             </div>
+
+             <div>
+                <label className="block text-sm font-bold text-zinc-500 mb-2">Başlık</label>
+                <input 
+                  required
+                  value={uploadForm.title}
+                  onChange={e => setUploadForm({...uploadForm, title: e.target.value})}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800 p-4 rounded-xl outline-none font-bold text-zinc-900 dark:text-white"
+                  placeholder="Örn: iPhone 13 128GB"
+                />
+             </div>
+             
+             <div className="flex gap-4">
+                <div className="flex-1">
+                   <label className="block text-sm font-bold text-zinc-500 mb-2">Fiyat (TL)</label>
+                   <input 
+                     type="number"
+                     required
+                     value={uploadForm.price}
+                     onChange={e => setUploadForm({...uploadForm, price: e.target.value})}
+                     className="w-full bg-zinc-100 dark:bg-zinc-800 p-4 rounded-xl outline-none font-bold text-zinc-900 dark:text-white"
+                   />
+                </div>
+                <div className="flex-1">
+                    <label className="block text-sm font-bold text-zinc-500 mb-2">Kategori</label>
+                    <div className="relative">
+                       <select 
+                          value={uploadForm.category}
+                          onChange={e => setUploadForm({...uploadForm, category: e.target.value})}
+                          className="w-full bg-zinc-100 dark:bg-zinc-800 p-4 rounded-xl outline-none font-bold text-zinc-900 dark:text-white appearance-none"
+                       >
+                          {['Elektronik', 'Moda', 'Ev', 'Hobi', 'Araç', 'Spor', 'Müzik'].map(c => <option key={c} value={c}>{c}</option>)}
+                       </select>
+                       <ChevronDown className="absolute right-4 top-4 text-zinc-400 pointer-events-none" size={20} />
+                    </div>
+                </div>
+             </div>
+
+             <div>
+                <div className="flex justify-between items-center mb-2">
+                   <label className="block text-sm font-bold text-zinc-500">Açıklama</label>
+                   <button 
+                     type="button" 
+                     onClick={handleAIHelp} 
+                     disabled={isGeneratingAI || !uploadForm.title}
+                     className="text-xs flex items-center gap-1 text-violet-600 font-bold disabled:opacity-50"
+                   >
+                      <Sparkles size={12} /> {isGeneratingAI ? 'Yazılıyor...' : 'AI ile Yaz'}
+                   </button>
+                </div>
+                <textarea 
+                  required
+                  value={uploadForm.description}
+                  onChange={e => setUploadForm({...uploadForm, description: e.target.value})}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800 p-4 rounded-xl outline-none text-zinc-900 dark:text-white min-h-[120px]"
+                  placeholder="Ürün durumu, kullanım süresi vb."
+                />
+             </div>
+             
+             <div>
+                <label className="block text-sm font-bold text-zinc-500 mb-2">Durum</label>
+                <div className="flex gap-2">
+                   {['Yeni Gibi', 'İdare Eder', 'Eski'].map(c => (
+                      <button 
+                        key={c}
+                        type="button"
+                        onClick={() => setUploadForm({...uploadForm, condition: c as any})}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${uploadForm.condition === c ? 'bg-violet-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'}`}
+                      >
+                         {c}
+                      </button>
+                   ))}
+                </div>
+             </div>
+
+             <button type="submit" disabled={isUploading} className="w-full bg-violet-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-violet-200 dark:shadow-violet-900/20 active:scale-95 transition-transform disabled:opacity-50">
+                {isUploading ? 'Kaydediliyor...' : 'Yayınla'}
+             </button>
+          </form>
+       </div>
+    </div>
+  );
+
+  const renderSwipe = () => (
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-zinc-900">
+       <div className="px-6 py-4 flex justify-between items-center bg-white dark:bg-zinc-900 shadow-sm z-10">
+          <button 
+            onClick={() => {
+                setView('home');
+                setSelectedMyProductId(null);
+                setSwapCandidates([]);
+            }} 
+            className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full shadow-sm"
+          >
+              <X size={20} className="dark:text-white" />
+          </button>
+          <h2 className="font-bold text-lg dark:text-white">Takas Keşfet</h2>
+          <div className="w-10"></div>
+       </div>
+
+       <div className="flex-1 flex flex-col overflow-hidden relative">
+          {!selectedMyProductId ? (
+             <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+                 {myProducts.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                       <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-2">
+                           <PlusCircle size={40} className="text-zinc-300 dark:text-zinc-600" />
+                       </div>
+                       <h3 className="font-bold text-xl dark:text-white">Henüz Ürünün Yok</h3>
+                       <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-xs">
+                           Takas yapmaya başlamak için önce bir ilan eklemelisin.
+                       </p>
+                       <button 
+                           onClick={() => setView('upload')}
+                           className="bg-violet-600 text-white px-6 py-3 rounded-xl font-bold mt-4"
+                       >
+                           Hemen İlan Ekle
+                       </button>
+                    </div>
+                 ) : (
+                    <>
+                        <div className="bg-violet-50 dark:bg-violet-900/10 p-4 rounded-xl mb-6 flex items-start gap-3">
+                           <Sparkles className="text-violet-600 shrink-0 mt-0.5" size={20} />
+                           <div>
+                              <h3 className="font-bold text-violet-700 dark:text-violet-400 text-sm mb-1">Takaslamak istediğin ürünü seç</h3>
+                              <p className="text-violet-600/80 dark:text-violet-400/70 text-xs">
+                                 Seçtiğin ürünün değerine yakın ilanları senin için bulup getireceğiz.
+                              </p>
+                           </div>
+                        </div>
+
+                        <h3 className="font-bold text-zinc-900 dark:text-white mb-4">Ürünlerim ({myProducts.length})</h3>
+                        <div className="space-y-3 pb-20">
+                           {myProducts.map(p => (
+                              <div 
+                                 key={p.id} 
+                                 onClick={() => startSwapSession(p)} 
+                                 className="flex items-center gap-4 p-3 bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl cursor-pointer hover:border-violet-500 transition-colors shadow-sm"
+                              >
+                                 <img src={p.image} className="w-16 h-16 rounded-xl object-cover bg-zinc-100" onError={handleImageError} />
+                                 <div className="flex-1">
+                                    <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{p.title}</h4>
+                                    <p className="text-emerald-500 font-bold text-xs mt-1">{p.price.toLocaleString('tr-TR')} TL</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                       <span className="text-[10px] bg-zinc-100 dark:bg-zinc-700 text-zinc-500 px-2 py-0.5 rounded-full">{p.category}</span>
+                                    </div>
+                                 </div>
+                                 <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center">
+                                     <ArrowRight size={16} className="text-zinc-400" />
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                    </>
+                 )}
+             </div>
+          ) : (
+             <div className="flex-1 flex flex-col justify-center relative">
+                <SwipeDeck candidates={swapCandidates} onSwipe={handleSwipe} />
+                
+                {swapCandidates.length === 0 && (
+                   <div className="absolute bottom-20 left-0 right-0 flex justify-center z-20 pointer-events-none">
+                      <button 
+                        onClick={() => setSelectedMyProductId(null)} 
+                        className="bg-white dark:bg-zinc-800 text-zinc-600 dark:text-white px-6 py-3 rounded-full font-bold shadow-lg border border-zinc-200 dark:border-zinc-700 pointer-events-auto flex items-center gap-2 hover:bg-zinc-50"
+                      >
+                         <Repeat size={16} /> Farklı Ürün Seç
+                      </button>
+                   </div>
+                )}
+             </div>
+          )}
+       </div>
+    </div>
+  );
+
+  const renderProfile = () => {
+    if (!currentUser) return null;
+    return (
+      <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+         {/* Header with Settings Button */}
+         <div className="px-6 pt-6 flex justify-end items-center">
+            <button onClick={() => setView('settings')} className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+               <Settings size={20} />
+            </button>
+         </div>
+         
+         {/* Profile Info Centered */}
+         <div className="flex flex-col items-center -mt-2 pb-6">
+            <div className="relative mb-3">
+               <img src={currentUser.avatar} className="w-24 h-24 rounded-full object-cover border-4 border-zinc-100 dark:border-zinc-800" />
+            </div>
+            
+            <h2 className="text-2xl font-bold dark:text-white mb-1">{currentUser.name}</h2>
+            <p className="text-zinc-500 text-sm flex items-center gap-1 mb-6">
+               <MapPin size={12} /> {currentUser.location || 'Konum Yok'}
+            </p>
+            
+            {/* Stats Row */}
+            <div className="flex items-center justify-center gap-8 w-full px-6">
+               <div className="text-center min-w-[60px]">
+                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">{currentUser.swapCount || 0}</span>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold">Takas</span>
+               </div>
+               <div className="w-px h-8 bg-zinc-200 dark:bg-zinc-800"></div>
+               <div className="text-center min-w-[60px]">
+                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">4.9</span>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold">Puan</span>
+               </div>
+               <div className="w-px h-8 bg-zinc-200 dark:bg-zinc-800"></div>
+               <div className="text-center min-w-[60px]">
+                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">{myProducts.length}</span>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold">İlan</span>
+               </div>
+            </div>
+         </div>
+         
+         {/* Tabs */}
+         <div className="flex px-6 mb-4 border-b border-zinc-100 dark:border-zinc-800">
+             <button onClick={() => setProfileTab('my')} className={`pb-3 px-4 font-bold text-sm transition-all relative ${profileTab === 'my' ? 'text-violet-600' : 'text-zinc-400'}`}>
+                İlanlarım
+                {profileTab === 'my' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600" />}
+             </button>
+             <button onClick={() => setProfileTab('favorites')} className={`pb-3 px-4 font-bold text-sm transition-all relative ${profileTab === 'favorites' ? 'text-violet-600' : 'text-zinc-400'}`}>
+                Favorilerim
+                {profileTab === 'favorites' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600" />}
+             </button>
+         </div>
+
+         {/* Grid Content */}
+         <div className="flex-1 overflow-y-auto px-6 pb-20">
+            {profileTab === 'my' ? (
+               <div className="grid grid-cols-2 gap-4">
+                  {myProducts.map(p => (
+                     <div key={p.id} onClick={() => { setSelectedProduct(p); }} className="bg-zinc-50 dark:bg-zinc-800 rounded-2xl overflow-hidden cursor-pointer relative group">
+                        <img src={p.image} className="aspect-square object-cover" />
+                        <div className="p-3">
+                           <p className="font-bold text-sm truncate dark:text-white">{p.title}</p>
+                           <p className="text-emerald-500 font-bold text-xs">{p.price.toLocaleString('tr-TR')} TL</p>
+                        </div>
+                        <button 
+                           onClick={(e) => { e.stopPropagation(); handleMyProductAction('delete', p); }}
+                           className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                           <Trash2 size={14} />
+                        </button>
+                     </div>
+                  ))}
+                  <button onClick={() => setView('upload')} className="aspect-square rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex flex-col items-center justify-center text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                     <PlusCircle size={32} className="mb-2" />
+                     <span className="font-bold text-sm">Yeni Ekle</span>
+                  </button>
+               </div>
+            ) : (
+               <div className="space-y-3">
+                  {marketProducts.filter(p => favorites.includes(p.id)).map(p => (
+                     <div key={p.id} onClick={() => setSelectedProduct(p)} className="flex gap-3 bg-zinc-50 dark:bg-zinc-800 p-3 rounded-2xl cursor-pointer">
+                        <img src={p.image} className="w-20 h-20 rounded-xl object-cover" />
+                        <div className="flex-1">
+                           <h4 className="font-bold dark:text-white">{p.title}</h4>
+                           <p className="text-emerald-500 font-bold">{p.price.toLocaleString('tr-TR')} TL</p>
+                           <div className="flex items-center gap-1 text-zinc-400 text-xs mt-2">
+                              <MapPin size={10} /> {p.location}
+                           </div>
+                        </div>
+                        <button onClick={(e) => toggleFavorite(e, p.id)} className="self-start text-red-500"><Heart size={20} className="fill-current" /></button>
+                     </div>
+                  ))}
+                  {favorites.length === 0 && (
+                     <div className="text-center py-10 text-zinc-400">
+                        <Heart size={48} className="mx-auto mb-3 opacity-20" />
+                        <p>Henüz favorin yok.</p>
+                     </div>
+                  )}
+               </div>
+            )}
+         </div>
+      </div>
+    );
+  };
+
+  const renderSettings = () => (
+     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+        <div className="px-6 py-4 flex items-center gap-4 border-b border-zinc-100 dark:border-zinc-800">
+           <button onClick={() => setView('profile')}><ArrowLeft className="dark:text-white" /></button>
+           <h2 className="text-xl font-bold dark:text-white">Ayarlar</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+           <div>
+              <h3 className="text-sm font-bold text-zinc-500 mb-4 uppercase tracking-wider">Profil</h3>
+              <div className="flex flex-col items-center mb-6">
+                 <div className="relative">
+                    <img src={editProfileAvatar || currentUser?.avatar} className="w-24 h-24 rounded-full object-cover" />
+                    <button onClick={() => profileFileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-violet-600 text-white p-2 rounded-full"><Camera size={16} /></button>
+                    <input type="file" ref={profileFileInputRef} onChange={handleProfileImageSelect} className="hidden" accept="image/*" />
+                 </div>
+              </div>
+              <div className="space-y-4">
+                 <div className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-xl flex items-center gap-3">
+                    <UserIcon className="text-zinc-400" />
+                    <input 
+                      value={editProfileName} 
+                      onChange={e => setEditProfileName(e.target.value)} 
+                      className="bg-transparent flex-1 outline-none font-bold dark:text-white"
+                      placeholder="Ad Soyad"
+                    />
+                 </div>
+                 <button onClick={handleSaveProfile} className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold">Kaydet</button>
+              </div>
+           </div>
+
+           <div>
+              <h3 className="text-sm font-bold text-zinc-500 mb-4 uppercase tracking-wider">Uygulama</h3>
+              <div className="space-y-2">
+                 <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                    <div className="flex items-center gap-3">
+                       {isDarkMode ? <Moon size={20} className="text-violet-400" /> : <Sun size={20} className="text-orange-400" />}
+                       <span className="font-bold dark:text-white">Karanlık Mod</span>
+                    </div>
+                    <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-12 h-6 rounded-full p-1 transition-colors ${isDarkMode ? 'bg-violet-600' : 'bg-zinc-300'}`}>
+                       <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : ''}`} />
+                    </button>
+                 </div>
+                 <button onClick={() => setShowLocationModal(true)} className="w-full flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl dark:text-white">
+                    <div className="flex items-center gap-3"><MapPin size={20} className="text-zinc-400" /><span className="font-bold">Konum Değiştir</span></div>
+                    <span className="text-zinc-400 text-sm">{currentUser?.location}</span>
+                 </button>
+                 <button onClick={() => setView('blocked-users')} className="w-full flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl dark:text-white">
+                    <div className="flex items-center gap-3"><Shield size={20} className="text-zinc-400" /><span className="font-bold">Engellenenler</span></div>
+                    <ArrowRight size={16} className="text-zinc-400" />
+                 </button>
+              </div>
+           </div>
+
+           <div>
+              <h3 className="text-sm font-bold text-zinc-500 mb-4 uppercase tracking-wider">Hesap</h3>
+              <div className="space-y-2">
+                 <button onClick={handleLogout} className="w-full flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold">
+                    <LogOut size={20} /> Çıkış Yap
+                 </button>
+                 <button onClick={handleDeleteAccount} className="w-full flex items-center gap-3 p-4 bg-transparent text-zinc-400 rounded-xl font-bold text-sm">
+                    Hesabımı Sil
+                 </button>
+              </div>
+           </div>
+        </div>
+        
+        {showLocationModal && (
+           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+              <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6">
+                 <h3 className="font-bold text-lg mb-4 dark:text-white">Konum Seç</h3>
+                 <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto mb-4">
+                    {CITIES.map(c => (
+                       <button key={c} onClick={() => handleUpdateLocation(c)} className={`p-3 rounded-xl font-bold text-sm ${currentUser?.location === c ? 'bg-violet-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300'}`}>
+                          {c}
+                       </button>
+                    ))}
+                 </div>
+                 <button onClick={() => setShowLocationModal(false)} className="w-full py-3 bg-zinc-100 dark:bg-zinc-800 font-bold rounded-xl dark:text-white">Kapat</button>
+              </div>
+           </div>
+        )}
+     </div>
+  );
+
+  const renderChat = () => {
+     if (!activeMatch) return null;
+     return (
+        <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+           <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 shadow-sm z-10">
+              <div className="flex items-center gap-3">
+                 <button onClick={() => setView('matches')}><ArrowLeft className="text-zinc-500 dark:text-white" /></button>
+                 <img src={activeMatch.otherUser.avatar} className="w-10 h-10 rounded-full object-cover" />
+                 <div>
+                    <h3 className="font-bold text-sm dark:text-white">{activeMatch.otherUser.name}</h3>
+                    <p className="text-[10px] text-green-500 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</p>
+                 </div>
+              </div>
+              <div className="relative">
+                 <button onClick={() => setShowChatMenu(!showChatMenu)} className="p-2"><MoreVertical className="text-zinc-400" /></button>
+                 {showChatMenu && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-zinc-100 dark:border-zinc-700 py-1 z-20">
+                       <button onClick={handleDeleteChat} className="w-full text-left px-4 py-3 text-red-500 font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700">Sohbeti Sil</button>
+                       <button onClick={() => handleBlockUser(activeMatch.otherUser)} className="w-full text-left px-4 py-3 text-zinc-600 dark:text-zinc-300 font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700">Kullanıcıyı Engelle</button>
+                    </div>
+                 )}
+              </div>
+           </div>
+           
+           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-50 dark:bg-zinc-900/50">
+              <div className="flex justify-center my-4">
+                 <div className="bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs px-3 py-1 rounded-full">
+                    Takas eşleşmesi sağlandı • {new Date(activeMatch.timestamp).toLocaleDateString()}
+                 </div>
+              </div>
+              
+              {chatHistory.map((msg, i) => (
+                 <div key={i} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[75%] p-3 rounded-2xl ${msg.isMe ? 'bg-violet-600 text-white rounded-br-none' : 'bg-white dark:bg-zinc-800 dark:text-white shadow-sm rounded-bl-none'}`}>
+                       {msg.image && <img src={msg.image} className="w-full rounded-lg mb-2" />}
+                       {msg.text && <p className="text-sm">{msg.text}</p>}
+                    </div>
+                 </div>
+              ))}
+           </div>
+
+           <div className="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
+              <button onClick={() => chatFileInputRef.current?.click()} className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500"><ImageIcon size={20} /></button>
+              <input type="file" ref={chatFileInputRef} onChange={handleChatImageSelect} className="hidden" accept="image/*" />
+              <button onClick={handleSendLocation} className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500"><MapPin size={20} /></button>
+              <input 
+                value={chatMessage}
+                onChange={e => setChatMessage(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Mesaj yaz..."
+                className="flex-1 bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-full outline-none text-zinc-900 dark:text-white"
+              />
+              <button onClick={handleSendMessage} className={`p-2.5 rounded-full ${chatMessage.trim() ? 'bg-violet-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}`}>
+                 <Send size={20} />
+              </button>
+           </div>
+        </div>
+     );
+  };
+
+  const renderUserProfile = () => {
+     if (!selectedUser) return null;
+     const userProducts = marketProducts.filter(p => p.userId === selectedUser.id);
+     
+     return (
+        <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+           <div className="px-4 py-4 flex items-center gap-3">
+              <button onClick={handleBackFromUserProfile} className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full"><ArrowLeft className="dark:text-white" /></button>
+              <h2 className="font-bold text-lg dark:text-white">{selectedUser.name}</h2>
+           </div>
+           
+           <div className="px-6 py-6 flex flex-col items-center">
+               <img src={selectedUser.avatar} className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-zinc-100 dark:border-zinc-800" />
+               <h3 className="text-2xl font-bold dark:text-white mb-1">{selectedUser.name}</h3>
+               <p className="text-zinc-500 mb-6 flex items-center gap-1"><MapPin size={14} /> {selectedUser.location || 'İstanbul'}</p>
+               
+               <div className="flex gap-8 mb-8">
+                   <div className="text-center">
+                       <span className="block text-xl font-bold dark:text-white">{selectedUser.swapCount || 0}</span>
+                       <span className="text-xs text-zinc-400 uppercase tracking-wider">Takas</span>
+                   </div>
+                   <div className="text-center">
+                       <span className="block text-xl font-bold dark:text-white">{userProducts.length}</span>
+                       <span className="text-xs text-zinc-400 uppercase tracking-wider">İlan</span>
+                   </div>
+               </div>
+               
+               <button onClick={() => handleBlockUser(selectedUser)} className="text-red-500 font-bold text-sm flex items-center gap-2 bg-red-50 dark:bg-red-900/10 px-4 py-2 rounded-full">
+                  <Shield size={16} /> Kullanıcıyı Engelle
+               </button>
+           </div>
+
+           <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 rounded-t-3xl p-6 overflow-y-auto">
+              <h3 className="font-bold text-zinc-500 mb-4">İlanları</h3>
+              <div className="grid grid-cols-2 gap-4">
+                 {userProducts.map(p => (
+                    <div key={p.id} onClick={() => { setSelectedProduct(p); setTempReturnProduct(null); }} className="bg-white dark:bg-zinc-800 rounded-2xl overflow-hidden shadow-sm cursor-pointer">
+                       <img src={p.image} className="aspect-square object-cover" />
+                       <div className="p-3">
+                          <p className="font-bold text-sm dark:text-white truncate">{p.title}</p>
+                          <p className="text-emerald-500 font-bold text-xs">{p.price.toLocaleString('tr-TR')} TL</p>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        </div>
+     );
+  };
+
+  const renderBlockedUsers = () => (
+     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
+        <div className="px-6 py-4 flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800">
+           <button onClick={() => setView('settings')}><ArrowLeft className="dark:text-white" /></button>
+           <h2 className="font-bold text-lg dark:text-white">Engellenen Kullanıcılar</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+           {blockedUsers.length === 0 ? (
+              <p className="text-center text-zinc-400 mt-10">Engellenen kullanıcı yok.</p>
+           ) : (
+              blockedUsers.map(u => (
+                 <div key={u.id} className="flex items-center justify-between py-4 border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-3">
+                       <img src={u.avatar} className="w-10 h-10 rounded-full object-cover" />
+                       <span className="font-bold dark:text-white">{u.name}</span>
+                    </div>
+                    <button onClick={() => handleUnblockUser(u.id)} className="text-sm font-bold text-violet-600 bg-violet-50 dark:bg-violet-900/20 px-3 py-1.5 rounded-lg">Engeli Kaldır</button>
+                 </div>
+              ))
+           )}
+        </div>
+     </div>
+  );
+
+  // Render Banner
+  const renderBanner = () => {
+    if (!bannerContent) return null;
+
+    const bannerColors = {
+      info: 'bg-blue-500',
+      success: 'bg-emerald-500',
+      warning: 'bg-orange-500',
+      error: 'bg-red-500',
+    };
+
+    return (
+      <motion.div
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -100, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className={`absolute top-0 left-0 right-0 z-50 p-4 text-white font-bold flex items-center gap-3 ${bannerColors[bannerContent.type]}`}
+      >
+        {bannerContent.icon && <div className="flex-shrink-0">{bannerContent.icon}</div>}
+        <p className="flex-1 text-sm">{bannerContent.message}</p>
+        <button onClick={() => setBannerContent(null)} className="text-white/80 hover:text-white"><X size={18} /></button>
+      </motion.div>
+    );
+  };
+
+  // Main Render
+  if (view === 'auth') return renderAuth();
+  
+  return (
+    <div className="max-w-md mx-auto h-[100dvh] bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden relative font-sans text-zinc-900">
+      {renderBanner()}
+      {renderConfirmationModal()}
+      {selectedProduct && renderProductDetail()}
+      {newMatch && (
+         <div className="absolute top-4 left-4 right-4 z-50 bg-emerald-500 text-white p-4 rounded-2xl shadow-xl animate-in slide-in-from-top flex items-center gap-4">
+             <div className="flex -space-x-2">
+                <img src={newMatch.otherUser.avatar} className="w-10 h-10 rounded-full border-2 border-white" />
+                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-500 font-bold border-2 border-white">+1</div>
+             </div>
+             <div className="flex-1">
+                <h4 className="font-bold text-lg">Eşleşme!</h4>
+                <p className="text-xs text-white/90">Takas teklifin kabul edildi.</p>
+             </div>
+         </div>
+      )}
+      
+      {/* View Content */}
+      <div className="h-full pb-20 overflow-hidden">
+         {view === 'home' && renderHome()}
+         {view === 'matches' && renderMatches()}
+         {view === 'upload' && renderUpload()}
+         {view === 'swipe' && renderSwipe()}
+         {view === 'profile' && renderProfile()}
+         {view === 'settings' && renderSettings()}
+         {view === 'chat' && renderChat()}
+         {view === 'user-profile' && renderUserProfile()}
+         {view === 'blocked-users' && renderBlockedUsers()}
+      </div>
+
+      {/* Bottom Navigation */}
+      {/* Fix: Use array includes to avoid TypeScript narrowing issues */}
+      {!['chat', 'swipe'].includes(view) && !selectedProduct && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 px-6 py-4 flex justify-between items-center z-40 pb-safe">
+           <button onClick={() => setView('home')} className={`flex flex-col items-center gap-1 ${view === 'home' ? 'text-violet-600' : 'text-zinc-400'}`}>
+              <Home size={24} className={view === 'home' ? 'fill-current' : ''} />
+              <span className="text-[10px] font-bold">Ana Sayfa</span>
+           </button>
+           <button onClick={() => setView('matches')} className={`flex flex-col items-center gap-1 ${view === 'matches' ? 'text-violet-600' : 'text-zinc-400'}`}>
+              <MessageCircle size={24} className={view === 'matches' ? 'fill-current' : ''} />
+              <span className="text-[10px] font-bold">Mesajlar</span>
+           </button>
+           <div className="relative -top-6">
+              <button 
+                onClick={() => setView('upload')}
+                className="w-16 h-16 bg-violet-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-violet-200 dark:shadow-violet-900/50 hover:scale-105 transition-transform"
+              >
+                 <PlusCircle size={32} />
+              </button>
+           </div>
+           <button onClick={() => setView('swipe')} className={`flex flex-col items-center gap-1 ${view === 'swipe' ? 'text-violet-600' : 'text-zinc-400'}`}>
+              <Repeat size={24} />
+              <span className="text-[10px] font-bold">Takasla</span>
+           </button>
+           <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-violet-600' : 'text-zinc-400'}`}>
+              <UserIcon size={24} className={view === 'profile' ? 'fill-current' : ''} />
+              <span className="text-[10px] font-bold">Profil</span>
+           </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
