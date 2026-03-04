@@ -6,29 +6,30 @@ workflows:
     environment:
       node: latest
       xcode: latest
-      # Bu blok paneldeki anahtarlarını otomatik eşleştirir
+      vars:
+        XCODE_APP_ID: "com.swapbarter.app"
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.swapbarter.app
     scripts:
-      - name: 1 - Hazirlik ve Derleme
+      - name: 1 - Hazirlik ve Web Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Altyapisi
+      - name: 2 - iOS Platform Kurulumu
         script: |
           rm -rf ios
           npm install @capacitor/ios
           npx cap add ios
           npx cap sync ios
-      - name: 3 - iOS IPA Dosyasi Uret (Otomatik Imzalama)
+      - name: 3 - Sertifika ve Profil Otomasyonu (Dosya Yukleme Derdine Son)
         script: |
-          # Bu komut paneldeki entegrasyonu kullanarak imzayı atar
-          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
-      - name: 4 - Apple Sertifikalarini Otomatik Olustur ve Yukle
-        script: |
-          # Bu komut senin yerine Apple'a gider, sertifika yoksa kendisi olusturur ve indirir
+          # Bu komut Apple sitesinde takildigimiz o sertifika dosyasini kendi uretir
           app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
           keychain add-certificates
+      - name: 4 - iOS IPA Dosyasi Uret
+        script: |
+          # Artik her sey hazir, imzali paketi cikariyoruz
+          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
