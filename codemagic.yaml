@@ -16,31 +16,28 @@ workflows:
           npm install
           npm run build
           npx cap sync ios
-      - name: 2 - Sertifika ve Profil Hazırlığı (Base64 Çözücü)
+      - name: 2 - Full iOS Signing & Build (TEK ADIMDA BİTİRİŞ)
         script: |
-          # 1. Metin kodlarını tekrar gerçek dosyalara çeviriyoruz
+          # 1. Metin kodlarını (Base64) tekrar gerçek dosyalara çevir
           echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
           echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
           
-          # 2. Anahtar Zincirini kur
+          # 2. Sertifikayı anahtar zincirine kur
           keychain initialize
           keychain add-certificates --certificate /tmp/cert.p12 --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # 3. İzin Belgesini (Profile) sisteme yükle
+          # 3. İzin Belgesini (Profile) Apple klasörüne yerleştir
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
           
-          # 4. Profil içinden UUID ve İsim bilgilerini çek (Paketleme için şart)
-          PROFILE_UUID=$(grep -aA1 "UUID" /tmp/profile.mobileprovision | grep -o "[-A-Z0-9]\{36\}")
+          # 4. Profil içinden isim ve UUID bilgilerini çek (Aynı script içindeyiz, hata lüksü yok)
           PROFILE_NAME=$(security cms -D -i /tmp/profile.mobileprovision | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
+          PROFILE_UUID=$(grep -aA1 "UUID" /tmp/profile.mobileprovision | grep -o "[-A-Z0-9]\{36\}")
           
-          echo "export PROFILE_UUID=\"$PROFILE_UUID\"" >> $CM_ENV
-          echo "export PROFILE_NAME=\"$PROFILE_NAME\"" >> $CM_ENV
-          echo "✅ Profil Tanımlandı: $PROFILE_NAME"
-      - name: 3 - Export Options (Paketleme Ayarı) Oluştur
-        script: |
-          # Hata aldığın o eksik dosyayı şimdi elinle oluşturuyoruz
+          echo "✅ Şantiyedeki Profil: $PROFILE_NAME ($PROFILE_UUID)"
+          
+          # 5. Paketleme Ayar Dosyasını (plist) Oluştur
           cat > /Users/builder/export_options.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -58,10 +55,9 @@ workflows:
           </dict>
           </plist>
           EOF
-          echo "✅ Paketleme ayarları hazır."
-      - name: 4 - iOS IPA Paketleme (FİNAL)
-        script: |
-          # Artık hem dosyalar hem de ayarlar yerinde!
+          
+          # 6. PAKETLEME (IPA Üretimi)
+          # Değişkenleri doğrudan bu komutun içine paslıyoruz
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
