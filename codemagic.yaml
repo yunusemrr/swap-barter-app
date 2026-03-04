@@ -5,7 +5,7 @@ workflows:
     max_build_duration: 60
     environment:
       groups:
-        - AppleKeys 
+        - AppleKeys # Paneldeki grup adıyla birebir AYNI olmalı
       node: latest
       xcode: latest
       vars:
@@ -13,32 +13,49 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Hazırlık ve Web Derleme
+      - name: 1 - Bağımlılıklar ve Web Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Senkronizasyon
+      - name: 2 - iOS Senkronizasyon (Capacitor)
         script: |
           npx cap sync ios
-      - name: 3 - Full iOS Signing & Build (TEK ADIM)
+      - name: 3 - Sertifika ve Profil Kurulumu (Manuel)
         script: |
-          # 1. Anahtarları Kur
+          # 1. Anahtar Zinciri Hazırlığı
           keychain initialize
-          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # 2. Profili Kur ve Bilgilerini Çek
+          # 2. Sertifikayı (.p12) Kur
+          if [ -f "$CM_CERTIFICATE" ]; then
+            keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
+            echo "✅ Sertifika başarıyla kuruldu."
+          else
+            echo "❌ HATA: .p12 dosyası bulunamadı! Panelde AppleKeys grubu seçili mi?"
+            exit 1
+          fi
+          
+          # 3. Profil (.mobileprovision) Kurulumu
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
-          cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/"
-          
-          # Profilin gerçek adını ve UUID'sini dosyanın içinden söküp alıyoruz
-          PROFILE_NAME=$(security cms -D -i "$CM_PROVISIONING_PROFILE" | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
-          PROFILE_UUID=$(grep -aA1 "UUID" "$CM_PROVISIONING_PROFILE" | grep -o "[-A-Z0-9]\{36\}")
-          
-          echo "✅ Profil Adı: $PROFILE_NAME"
-          echo "✅ Profil UUID: $PROFILE_UUID"
-
-          # 3. Export Options Dosyasını Şimdi Oluştur (Garantili)
+          if [ -f "$CM_PROVISIONING_PROFILE" ]; then
+            cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/profile.mobileprovision"
+            
+            # Profil içinden gerçek Adı ve UUID'yi alalım
+            PROFILE_NAME=$(security cms -D -i "$PROFILES_DIR/profile.mobileprovision" | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
+            PROFILE_UUID=$(grep -aA1 "UUID" "$PROFILES_DIR/profile.mobileprovision" | grep -o "[-A-Z0-9]\{36\}")
+            
+            # Bu değerleri sonraki adımlarda kullanmak üzere kaydedelim
+            echo "export PROFILE_NAME=\"$PROFILE_NAME\"" >> $CM_ENV
+            echo "export PROFILE_UUID=\"$PROFILE_UUID\"" >> $CM_ENV
+            
+            echo "✅ Profil Hazır: $PROFILE_NAME ($PROFILE_UUID)"
+          else
+            echo "❌ HATA: .mobileprovision dosyası bulunamadı!"
+            exit 1
+          fi
+      - name: 4 - Export Options (Paketleme Talimatı) Oluştur
+        script: |
+          # Paketleme sırasında kullanılacak plist dosyasını hazırlıyoruz
           cat > /Users/builder/export_options.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -56,12 +73,12 @@ workflows:
           </dict>
           </plist>
           EOF
-
-          # 4. Arşivleme ve Paketleme (İsim ve UUID ile zorlayarak)
+          echo "✅ Export Options oluşturuldu."
+      - name: 5 - iOS IPA Paketleme (FİNAL)
+        script: |
+          # Tüm ayarları birleştirip IPA dosyasını üretiyoruz
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
             --export-options-plist "/Users/builder/export_options.plist" \
-            --archive-flags "PROVISIONING_PROFILE=\"$PROFILE_UUID\" PROVISIONING_PROFILE_SPECIFIER=\"$PROFILE_NAME\" CODE_SIGN_STYLE=Manual"
-    artifacts:
-      - build/ios/ipa/*.ipa
+            --archive-flags "PROVISIONING_PROFILE=\"$PROFILE_UUID
