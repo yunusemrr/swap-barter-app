@@ -12,6 +12,10 @@ workflows:
         script: npm run build
       - name: Capacitor ile iOS'a Aktar
         script: npx cap sync ios
+      - name: iOS Pod Bagimliliklarini Kur
+        script: |
+          cd ios/App
+          pod install
       - name: iOS Uygulamasini Insa Et
         script: |
           cd ios/App
