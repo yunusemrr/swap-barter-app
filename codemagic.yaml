@@ -11,16 +11,14 @@ workflows:
         script: npm install
       - name: Web Kodlarini Derle
         script: npm run build
-      - name: Hatali Klasoru Sil ve Sifirdan iOS Yarat
+      - name: iOS Klasoru Olusturma Denemesi
         script: |
-          set -e
-          rm -rf ios
-          npm install @capacitor/ios
+          npm install @capacitor/ios @capacitor/core
           npx cap add ios
           npx cap sync ios
+          ls -R ios  # Klasorun olusup olusmadigini kontrol et
       - name: iOS Uygulamasini Insa Et
         script: |
-          set -e
           cd ios/App
           pod install
           xcodebuild build -workspace App.xcworkspace -scheme App -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO
