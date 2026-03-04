@@ -11,13 +11,16 @@ workflows:
         script: npm install
       - name: Web Kodlarini Derle (React)
         script: npm run build
-      - name: Capacitor ile iOS'a Aktar ve Podlari Guncelle
+      - name: iOS Platformunu Garantiye Al
         script: |
+          # Eger klasor yoksa bulutta sifirdan yarat, varsa hata verme devam et
+          npx cap add ios || echo "iOS klasoru zaten mevcut, devam ediliyor."
           npx cap sync ios
+      - name: Podlari Kur (Workspace Olustur)
+        script: |
+          cd ios/App
+          pod install --repo-update
       - name: iOS Uygulamasini Insa Et
         script: |
           cd ios/App
           xcodebuild build -workspace App.xcworkspace -scheme App -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO
-    artifacts:
-      - ios/App/build/outputs/**/*.ipa
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app
