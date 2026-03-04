@@ -5,27 +5,52 @@ workflows:
     max_build_duration: 60
     environment:
       groups:
-        - AppleKeys # Paneldeki grup adıyla aynı olmalı
+        - AppleKeys # Codemagic panelindeki grup adıyla BİREBİR AYNI olmalı
       node: latest
       xcode: latest
+      vars:
+        XCODE_APP_ID: "com.swapbarter.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Hazirlik ve Derleme
+      - name: 1 - Bağımlılıkları Yükle ve Web Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Platform Senkronizasyon
+      - name: 2 - iOS Platform Senkronizasyon (Capacitor)
         script: |
           npx cap sync ios
-      - name: 3 - Manuel Sertifika Kurulumu
+      - name: 3 - Manuel Sertifika ve Profil Kurulumu (Garanti Yöntem)
         script: |
-          # Buluttaki Mac'in anahtar zincirini hazırlar
+          # 1. Anahtar Zinciri (Keychain) Hazırlığı
           keychain initialize
-          # Yüklediğin .p12 ve .mobileprovision dosyalarını sisteme tanıtır
-          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
-          provisioning-profile add --provisioning-profile "$CM_PROVISIONING_PROFILE"
-      - name: 4 - iOS IPA Paketleme
+          
+          # 2. Sertifika (.p12) Kurulumu
+          if [ -f "$CM_CERTIFICATE" ]; then
+            keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
+            echo "✅ Sertifika başarıyla anahtarlığa eklendi."
+          else
+            echo "❌ HATA: .p12 dosyası bulunamadı! Panelde AppleKeys grubunun SEÇİLİ (Selected) olduğundan emin ol."
+            exit 1
+          fi
+          
+          # 3. Provisioning Profile Kurulumu (Manuel Kopyalama)
+          # 'command not found' hatasını almamak için dosyayı doğrudan Apple'ın aradığı gizli klasöre kopyalıyoruz
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          if [ -f "$CM_PROVISIONING_PROFILE" ]; then
+            cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/"
+            echo "✅ Profil (İzin Belgesi) sisteme kopyalandı."
+          else
+            echo "❌ HATA: .mobileprovision dosyası bulunamadı!"
+            exit 1
+          fi
+      - name: 4 - iOS IPA Paketleme (İmzalama)
         script: |
-          # Uygulamanı senin imzanla paketler
-          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+          # Uygulamayı az önce yüklediğimiz sertifikalarla mühürler
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --export-method app-store
     artifacts:
       - build/ios/ipa/*.ipa
