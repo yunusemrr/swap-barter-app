@@ -8,18 +8,8 @@ workflows:
       xcode: latest
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
-        # BURAYA APPLE'DAN ALDIĞIN BİLGİLERİ YAZACAĞIZ:
-        APP_STORE_CONNECT_ISSUER_ID: "Bc59276ff-e782-484f-9667-fefae5e6c18e"
-        APP_STORE_CONNECT_KEY_IDENTIFIER: "BNA5FF3CHA"
-        APP_STORE_CONNECT_PRIVATE_KEY: |
-          -----BEGIN PRIVATE KEY-----
-          MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg3XDTz0QcBMDUUVTi
-          gn5zlv5oS5wpSzHcPtXxzCjVaDygCgYIKoZIzj0DAQehRANCAASz3QSpzb2YV84o
-          zMduf+ia7PZvyP+p8rUVWRsHKCK+UQkKOHtQzvpiDImFQQ66GBtZUZhXtgw0FToa
-          bOij/ioq
-          -----END PRIVATE KEY-----
     scripts:
-      - name: 1 - Hazirlik ve Web Derleme
+      - name: 1 - Hazirlik ve Derleme
         script: |
           npm install
           npm run build
@@ -29,12 +19,12 @@ workflows:
           npm install @capacitor/ios
           npx cap add ios
           npx cap sync ios
-      - name: 3 - Sertifika ve Profil Alımı
+      - name: 3 - Apple Sertifika ve Profil Otomasyonu
         script: |
-          # Bu sefer anahtarları elinle verdiğimiz için hata veremeyecek
+          # --create komutu, sertifika sayfasi bossa yeni bir tane olusturur
           app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
           keychain add-certificates
-      - name: 4 - iOS IPA Dosyasi Uret
+      - name: 4 - iOS IPA Paketleme
         script: |
           xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
