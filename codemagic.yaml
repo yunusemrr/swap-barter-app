@@ -6,16 +6,30 @@ workflows:
     environment:
       node: latest
       xcode: latest
+      cocoapods: default
     scripts:
-      - name: Hazirlik
+      - name: 1 - Bagimliliklari Kur
+        script: npm install
+      - name: 2 - Web Projesini Derle
+        script: npm run build
+      - name: 3 - Bozuk iOS Klasorunu Sil
+        script: rm -rf ios
+      - name: 4 - Capacitor iOS Altyapisini Olustur
         script: |
-          npm install
-          npm run build
-      - name: Capacitor Esitleme
+          set -e
+          npm install @capacitor/ios
+          npx cap add ios
+      - name: 5 - Kodlari iOS'a Esitle
         script: |
+          set -e
           npx cap sync ios
-      - name: iOS Derleme
+      - name: 6 - Podfile ve Apple Kutuphanelerini Kur
         script: |
+          set -e
           cd ios/App
           pod install
+      - name: 7 - iOS Derleme (Xcode)
+        script: |
+          set -e
+          cd ios/App
           xcodebuild build -workspace App.xcworkspace -scheme App -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO
