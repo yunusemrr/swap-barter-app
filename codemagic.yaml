@@ -8,7 +8,16 @@ workflows:
       xcode: latest
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
-    # BURADAKİ ios_signing BLOĞUNU SİLDİK, HATAYI VEREN OYDU
+        # BURAYA APPLE'DAN ALDIĞIN BİLGİLERİ YAZACAĞIZ:
+        APP_STORE_CONNECT_ISSUER_ID: "Bc59276ff-e782-484f-9667-fefae5e6c18e"
+        APP_STORE_CONNECT_KEY_IDENTIFIER: "BNA5FF3CHA"
+        APP_STORE_CONNECT_PRIVATE_KEY: |
+          -----BEGIN PRIVATE KEY-----
+          MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg3XDTz0QcBMDUUVTi
+          gn5zlv5oS5wpSzHcPtXxzCjVaDygCgYIKoZIzj0DAQehRANCAASz3QSpzb2YV84o
+          zMduf+ia7PZvyP+p8rUVWRsHKCK+UQkKOHtQzvpiDImFQQ66GBtZUZhXtgw0FToa
+          bOij/ioq
+          -----END PRIVATE KEY-----
     scripts:
       - name: 1 - Hazirlik ve Web Derleme
         script: |
@@ -20,14 +29,13 @@ workflows:
           npm install @capacitor/ios
           npx cap add ios
           npx cap sync ios
-      - name: 3 - Sertifika ve Profil Otomasyonu (Kodla Cozum)
+      - name: 3 - Sertifika ve Profil Alımı
         script: |
-          # Bu komut Apple'a gider ve her seyi sifirdan kurar
-          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create --clean
+          # Bu sefer anahtarları elinle verdiğimiz için hata veremeyecek
+          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
           keychain add-certificates
       - name: 4 - iOS IPA Dosyasi Uret
         script: |
-          # Imzalamayi burada manuel tetikliyoruz
           xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
