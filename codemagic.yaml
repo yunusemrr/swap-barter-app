@@ -6,24 +6,29 @@ workflows:
     environment:
       node: latest
       xcode: latest
+      vars:
+        XCODE_APP_ID: "com.swapbarter.app" # Burasi senin appId bilgin
     scripts:
       - name: 1 - Bagimliliklari Kur
         script: npm install
       - name: 2 - Web Projesini Derle
         script: npm run build
-      - name: 3 - Bozuk Klasorleri Temizle
-        script: rm -rf ios
-      - name: 4 - Capacitor iOS Altyapisini Olustur
+      - name: 3 - iOS Altyapisini Sifirla
         script: |
           set -e
+          rm -rf ios
           npm install @capacitor/ios
           npx cap add ios
-      - name: 5 - Kodlari iOS'a Esitle
-        script: |
-          set -e
           npx cap sync ios
-      - name: 6 - iOS Derleme (Modern SPM)
+      - name: 4 - Apple Sertifikalarini Yukle (Signing)
+        script: |
+          # Codemagic bu komutla senin Apple hesabina baglanip sertifika alir
+          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+      - name: 5 - iOS Uygulamasini Paketle (.IPA)
         script: |
           set -e
-          cd ios/App
-          xcodebuild build -project App.xcodeproj -scheme App -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO
+          # Artik modern SPM sistemiyle IPA uretiyoruz
+          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
