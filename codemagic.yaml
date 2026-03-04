@@ -4,9 +4,9 @@ workflows:
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
-      # İŞTE EKSİK OLAN KISIM BURASIYDI:
+      # BURASI ÇOK KRİTİK: Panelde oluşturduğun grubun adını buraya yazmalısın
       groups:
-        - AppleKeys # Az once panelde olusturdugumuz grubun adi
+        - AppleKeys 
       node: latest
       xcode: latest
       vars:
@@ -24,7 +24,7 @@ workflows:
           npx cap sync ios
       - name: 3 - Apple Sertifika ve Profil Otomasyonu
         script: |
-          # Artik 'AppleKeys' grubunu okudugu icin anahtarlari bulacak
+          # Liste boş olduğu için bu komut otomatik olarak yeni sertifika üretecek
           app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
           keychain add-certificates
       - name: 4 - iOS IPA Paketleme
