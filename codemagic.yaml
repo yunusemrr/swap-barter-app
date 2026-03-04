@@ -20,20 +20,27 @@ workflows:
       - name: 2 - iOS Senkronizasyon
         script: |
           npx cap sync ios
-      - name: 3 - Manuel Sertifika ve Profil Kurulumu
+      - name: 3 - Sertifika ve Profil Hazırlığı
         script: |
+          # 1. Anahtar Zinciri Hazırlığı
           keychain initialize
           keychain add-certificates \
             --certificate "$CM_CERTIFICATE" \
             --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
+          # 2. Profil Kurulumu
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/"
-          echo "✅ Mühür ve Tapu hazır!"
-      - name: 4 - Export Options (Teslimat Belgesi) Oluştur
+          
+          # 3. Profil İsmini Otomatik Çıkar (Çok Kritik!)
+          # Bu komut yüklediğin .mobileprovision dosyasının içindeki gerçek ismi bulur
+          PROV_PROFILE_NAME=$(security cms -D -i "$CM_PROVISIONING_PROFILE" | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
+          echo "export PROV_PROFILE_NAME=\"$PROV_PROFILE_NAME\"" >> $CM_ENV
+          echo "✅ Kullanılacak Profil: $PROV_PROFILE_NAME"
+      - name: 4 - Export Options ve Paketleme (KESİN ÇÖZÜM)
         script: |
-          # Makinenin aradığı o dosyayı şimdi elinle oluşturuyoruz
+          # Teslimat belgesini (plist) detaylıca oluşturuyoruz
           cat > /Users/builder/export_options.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -43,16 +50,20 @@ workflows:
             <string>app-store</string>
             <key>signingStyle</key>
             <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$XCODE_APP_ID</key>
+              <string>$PROV_PROFILE_NAME</string>
+            </dict>
           </dict>
           </plist>
           EOF
-          echo "✅ Teslimat belgesi (plist) oluşturuldu."
-      - name: 5 - iOS IPA Paketleme (FİNAL)
-        script: |
-          # Artık teslimat belgesi yerinde olduğu için paketleme tamamlanacak
+          
+          # Arşivleme ve IPA oluşturma (Profil ismini zorla dikte ediyoruz)
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
-            --export-options-plist "/Users/builder/export_options.plist"
+            --export-options-plist "/Users/builder/export_options.plist" \
+            --archive-flags "PROVISIONING_PROFILE_SPECIFIER=\"$PROV_PROFILE_NAME\" CODE_SIGN_STYLE=Manual"
     artifacts:
       - build/ios/ipa/*.ipa
