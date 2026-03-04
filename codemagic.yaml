@@ -2,83 +2,33 @@ workflows:
   ios-capacitor-build:
     name: Swap Barter iOS Build
     instance_type: mac_mini_m1
-    max_build_duration: 60
     environment:
       groups:
-        - AppleKeys # Paneldeki grup adıyla birebir AYNI olmalı
-      node: latest
-      xcode: latest
+        - AppleKeys 
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
-        XCODE_PROJECT: "ios/App/App.xcodeproj"
-        XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Bağımlılıklar ve Web Derleme
+      - name: 1 - Hazırlık
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Senkronizasyon (Capacitor)
-        script: |
           npx cap sync ios
-      - name: 3 - Sertifika ve Profil Kurulumu (Manuel)
+      - name: 2 - Sertifika ve Profil Çözücü (Base64 Decode)
         script: |
-          # 1. Anahtar Zinciri Hazırlığı
+          # Kodları tekrar dosyaya çeviriyoruz
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
+          echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
+          
+          # Keychain'e ekle
           keychain initialize
+          keychain add-certificates --certificate /tmp/cert.p12 --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # 2. Sertifikayı (.p12) Kur
-          if [ -f "$CM_CERTIFICATE" ]; then
-            keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
-            echo "✅ Sertifika başarıyla kuruldu."
-          else
-            echo "❌ HATA: .p12 dosyası bulunamadı! Panelde AppleKeys grubu seçili mi?"
-            exit 1
-          fi
-          
-          # 3. Profil (.mobileprovision) Kurulumu
+          # Profile klasörüne taşı
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
-          if [ -f "$CM_PROVISIONING_PROFILE" ]; then
-            cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/profile.mobileprovision"
-            
-            # Profil içinden gerçek Adı ve UUID'yi alalım
-            PROFILE_NAME=$(security cms -D -i "$PROFILES_DIR/profile.mobileprovision" | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
-            PROFILE_UUID=$(grep -aA1 "UUID" "$PROFILES_DIR/profile.mobileprovision" | grep -o "[-A-Z0-9]\{36\}")
-            
-            # Bu değerleri sonraki adımlarda kullanmak üzere kaydedelim
-            echo "export PROFILE_NAME=\"$PROFILE_NAME\"" >> $CM_ENV
-            echo "export PROFILE_UUID=\"$PROFILE_UUID\"" >> $CM_ENV
-            
-            echo "✅ Profil Hazır: $PROFILE_NAME ($PROFILE_UUID)"
-          else
-            echo "❌ HATA: .mobileprovision dosyası bulunamadı!"
-            exit 1
-          fi
-      - name: 4 - Export Options (Paketleme Talimatı) Oluştur
+          cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
+      - name: 3 - Paketleme
         script: |
-          # Paketleme sırasında kullanılacak plist dosyasını hazırlıyoruz
-          cat > /Users/builder/export_options.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>$XCODE_APP_ID</key>
-              <string>$PROFILE_UUID</string>
-            </dict>
-          </dict>
-          </plist>
-          EOF
-          echo "✅ Export Options oluşturuldu."
-      - name: 5 - iOS IPA Paketleme (FİNAL)
-        script: |
-          # Tüm ayarları birleştirip IPA dosyasını üretiyoruz
-          xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --export-options-plist "/Users/builder/export_options.plist" \
-            --archive-flags "PROVISIONING_PROFILE=\"$PROFILE_UUID
+          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
