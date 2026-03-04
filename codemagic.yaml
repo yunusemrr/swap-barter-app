@@ -13,34 +13,46 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Bağımlılıkları Yükle ve Web Derleme
+      - name: 1 - Bağımlılıklar ve Web Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Platform Senkronizasyon (Capacitor)
+      - name: 2 - iOS Senkronizasyon
         script: |
           npx cap sync ios
       - name: 3 - Manuel Sertifika ve Profil Kurulumu
         script: |
-          # 1. Anahtar Zinciri Hazırlığı
           keychain initialize
-          
-          # 2. Sertifika (.p12) Kurulumu
           keychain add-certificates \
             --certificate "$CM_CERTIFICATE" \
             --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # 3. Provisioning Profile Kurulumu (Manuel Kopyalama)
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/"
-          echo "✅ Sertifika ve Profil hazır!"
-      - name: 4 - iOS IPA Paketleme (Final)
+          echo "✅ Mühür ve Tapu hazır!"
+      - name: 4 - Export Options (Teslimat Belgesi) Oluştur
         script: |
-          # Hatalı olan '--export-method' kısmını kaldırdık. 
-          # Xcode, yüklediğimiz profilleri otomatik olarak eşleştirecek.
+          # Makinenin aradığı o dosyayı şimdi elinle oluşturuyoruz
+          cat > /Users/builder/export_options.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+          echo "✅ Teslimat belgesi (plist) oluşturuldu."
+      - name: 5 - iOS IPA Paketleme (FİNAL)
+        script: |
+          # Artık teslimat belgesi yerinde olduğu için paketleme tamamlanacak
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME"
+            --scheme "$XCODE_SCHEME" \
+            --export-options-plist "/Users/builder/export_options.plist"
     artifacts:
       - build/ios/ipa/*.ipa
