@@ -5,30 +5,27 @@ workflows:
     max_build_duration: 60
     environment:
       groups:
-        - AppleKeys # image_c982e6.png'deki isimle birebir AYNI
+        - AppleKeys # Paneldeki grup adıyla aynı olmalı
       node: latest
       xcode: latest
-      vars:
-        XCODE_APP_ID: "com.swapbarter.app"
     scripts:
-      - name: 1 - Hazirlik ve Web Derleme
+      - name: 1 - Hazirlik ve Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Platform Kurulumu
+      - name: 2 - iOS Platform Senkronizasyon
         script: |
-          rm -rf ios
-          npm install @capacitor/ios
-          npx cap add ios
           npx cap sync ios
-      - name: 3 - Apple Sertifika ve Profil Otomasyonu
+      - name: 3 - Manuel Sertifika Kurulumu
         script: |
-          # Paneldeki anahtarları kullanarak Apple'a gider ve sertifika üretir
-          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
-      - name: 4 - iOS IPA Dosyasi Uret
+          # Buluttaki Mac'in anahtar zincirini hazırlar
+          keychain initialize
+          # Yüklediğin .p12 ve .mobileprovision dosyalarını sisteme tanıtır
+          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
+          provisioning-profile add --provisioning-profile "$CM_PROVISIONING_PROFILE"
+      - name: 4 - iOS IPA Paketleme
         script: |
-          # Proje yolunu ve semayi otomatik bulur
+          # Uygulamanı senin imzanla paketler
           xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
