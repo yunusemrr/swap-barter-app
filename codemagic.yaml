@@ -11,13 +11,16 @@ workflows:
         script: npm install
       - name: Web Kodlarini Derle
         script: npm run build
-      - name: Capacitor Guncelle
-        script: npx cap sync ios
-      - name: Podlari Kur
+      - name: Hatali Klasoru Sil ve Sifirdan iOS Yarat
         script: |
-          cd ios/App
-          pod install --repo-update
+          set -e
+          rm -rf ios
+          npm install @capacitor/ios
+          npx cap add ios
+          npx cap sync ios
       - name: iOS Uygulamasini Insa Et
         script: |
+          set -e
           cd ios/App
+          pod install
           xcodebuild build -workspace App.xcworkspace -scheme App -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO
