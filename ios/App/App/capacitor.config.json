@@ -1,0 +1,10 @@
+{
+	"appId": "com.swapbarter.app",
+	"appName": "Swap-barter-app",
+	"webDir": "dist",
+	"packageClassList": [
+		"AppPlugin",
+		"CAPCameraPlugin",
+		"GeolocationPlugin"
+	]
+}
