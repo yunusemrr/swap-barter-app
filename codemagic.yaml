@@ -5,41 +5,30 @@ workflows:
     max_build_duration: 60
     environment:
       groups:
-        - AppleKeys # Codemagic panelinde oluşturduğun grup ismiyle aynı olmalı
+        - AppleKeys # image_c982e6.png'deki isimle birebir AYNI
       node: latest
       xcode: latest
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
-        XCODE_SCHEME: "App"
-        XCODE_PROJECT: "ios/App/App.xcodeproj"
     scripts:
-      - name: 1 - Bağımlılıkları Yükle ve Web Derleme
+      - name: 1 - Hazirlik ve Web Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Platformunu Hazırla
+      - name: 2 - iOS Platform Kurulumu
         script: |
-          # Temiz bir kurulum için eski dosyaları siliyoruz
           rm -rf ios
           npm install @capacitor/ios
           npx cap add ios
           npx cap sync ios
-      - name: 3 - Apple Sertifika ve Profil Otomasyonu (Kesin Çözüm)
+      - name: 3 - Apple Sertifika ve Profil Otomasyonu
         script: |
-          # Bu komut, paneldeki ISSUER_ID ve KEY_ID'yi kullanarak Apple'a giriş yapar.
-          # Sertifika yoksa oluşturur, varsa indirir.
-          app-store-connect fetch-signing-files "$XCODE_APP_ID" \
-            --type IOS_APP_STORE \
-            --create
-          
-          # İndirilen sertifikaları buluttaki Mac'in anahtarlığına tescil eder
+          # Paneldeki anahtarları kullanarak Apple'a gider ve sertifika üretir
+          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
           keychain add-certificates
-      - name: 4 - iOS IPA Dosyasını Üret (İmzalı Paket)
+      - name: 4 - iOS IPA Dosyasi Uret
         script: |
-          # 'xcode-project build-ipa' komutu, otomatik olarak az önce indirilen profili kullanır
-          xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --export-method app-store
+          # Proje yolunu ve semayi otomatik bulur
+          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
