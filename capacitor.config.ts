@@ -1,19 +1,9 @@
-import { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.takasla.app',
-  appName: 'TakasLa',
-  webDir: 'dist',
-  server: {
-    androidScheme: 'https'
-  },
-  plugins: {
-    Keyboard: {
-      resize: 'body',
-      style: 'dark',
-      resizeOnFullScreen: true,
-    },
-  }
+  appId: 'com.swapbarter.app',
+  appName: 'Swap-barter-app',
+  webDir: 'dist'
 };
 
 export default config;
