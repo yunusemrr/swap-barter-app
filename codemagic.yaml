@@ -7,17 +7,14 @@ workflows:
       node: latest
       xcode: latest
     scripts:
-      - name: Bagimliliklari Kur
-        script: npm install
-      - name: Web Kodlarini Derle
-        script: npm run build
-      - name: iOS Klasoru Olusturma Denemesi
+      - name: Hazirlik
         script: |
-          npm install @capacitor/ios @capacitor/core
-          npx cap add ios
+          npm install
+          npm run build
+      - name: Capacitor Esitleme
+        script: |
           npx cap sync ios
-          ls -R ios  # Klasorun olusup olusmadigini kontrol et
-      - name: iOS Uygulamasini Insa Et
+      - name: iOS Derleme
         script: |
           cd ios/App
           pod install
