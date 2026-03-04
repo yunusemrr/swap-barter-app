@@ -13,34 +13,32 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Bağımlılıklar ve Web Derleme
+      - name: 1 - Hazırlık ve Web Derleme
         script: |
           npm install
           npm run build
       - name: 2 - iOS Senkronizasyon
         script: |
           npx cap sync ios
-      - name: 3 - Sertifika ve Profil Hazırlığı
+      - name: 3 - Full iOS Signing & Build (TEK ADIM)
         script: |
-          # 1. Anahtar Zinciri Hazırlığı
+          # 1. Anahtarları Kur
           keychain initialize
-          keychain add-certificates \
-            --certificate "$CM_CERTIFICATE" \
-            --certificate-password "$CM_CERTIFICATE_PASSWORD"
+          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # 2. Profil Kurulumu
+          # 2. Profili Kur ve Bilgilerini Çek
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/"
           
-          # 3. Profil İsmini Otomatik Çıkar (Çok Kritik!)
-          # Bu komut yüklediğin .mobileprovision dosyasının içindeki gerçek ismi bulur
-          PROV_PROFILE_NAME=$(security cms -D -i "$CM_PROVISIONING_PROFILE" | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
-          echo "export PROV_PROFILE_NAME=\"$PROV_PROFILE_NAME\"" >> $CM_ENV
-          echo "✅ Kullanılacak Profil: $PROV_PROFILE_NAME"
-      - name: 4 - Export Options ve Paketleme (KESİN ÇÖZÜM)
-        script: |
-          # Teslimat belgesini (plist) detaylıca oluşturuyoruz
+          # Profilin gerçek adını ve UUID'sini dosyanın içinden söküp alıyoruz
+          PROFILE_NAME=$(security cms -D -i "$CM_PROVISIONING_PROFILE" | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
+          PROFILE_UUID=$(grep -aA1 "UUID" "$CM_PROVISIONING_PROFILE" | grep -o "[-A-Z0-9]\{36\}")
+          
+          echo "✅ Profil Adı: $PROFILE_NAME"
+          echo "✅ Profil UUID: $PROFILE_UUID"
+
+          # 3. Export Options Dosyasını Şimdi Oluştur (Garantili)
           cat > /Users/builder/export_options.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -53,17 +51,17 @@ workflows:
             <key>provisioningProfiles</key>
             <dict>
               <key>$XCODE_APP_ID</key>
-              <string>$PROV_PROFILE_NAME</string>
+              <string>$PROFILE_UUID</string>
             </dict>
           </dict>
           </plist>
           EOF
-          
-          # Arşivleme ve IPA oluşturma (Profil ismini zorla dikte ediyoruz)
+
+          # 4. Arşivleme ve Paketleme (İsim ve UUID ile zorlayarak)
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
             --export-options-plist "/Users/builder/export_options.plist" \
-            --archive-flags "PROVISIONING_PROFILE_SPECIFIER=\"$PROV_PROFILE_NAME\" CODE_SIGN_STYLE=Manual"
+            --archive-flags "PROVISIONING_PROFILE=\"$PROFILE_UUID\" PROVISIONING_PROFILE_SPECIFIER=\"$PROFILE_NAME\" CODE_SIGN_STYLE=Manual"
     artifacts:
       - build/ios/ipa/*.ipa
