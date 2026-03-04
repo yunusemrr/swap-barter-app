@@ -7,14 +7,16 @@ workflows:
       node: latest
       xcode: latest
     scripts:
-      - name: Paketi ve Bagimliliklari Kur
+      - name: Temel Bagimliliklari Kur
         script: npm install
+      - name: iOS Malzemelerini Zorla Getir
+        script: npm install @capacitor/ios
       - name: Web Kodlarini Derle (React)
         script: npm run build
-      - name: iOS Platformunu Garantiye Al
+      - name: Zemini Temizle ve iOS Temelini Sifirdan At
         script: |
-          # Eger klasor yoksa bulutta sifirdan yarat, varsa hata verme devam et
-          npx cap add ios || echo "iOS klasoru zaten mevcut, devam ediliyor."
+          rm -rf ios
+          npx cap add ios
           npx cap sync ios
       - name: Podlari Kur (Workspace Olustur)
         script: |
