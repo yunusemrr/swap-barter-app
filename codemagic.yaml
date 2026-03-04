@@ -8,9 +8,7 @@ workflows:
       xcode: latest
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.swapbarter.app
+    # BURADAKİ ios_signing BLOĞUNU SİLDİK, HATAYI VEREN OYDU
     scripts:
       - name: 1 - Hazirlik ve Web Derleme
         script: |
@@ -22,14 +20,14 @@ workflows:
           npm install @capacitor/ios
           npx cap add ios
           npx cap sync ios
-      - name: 3 - Sertifika ve Profil Otomasyonu (Zorlamali Temizlik)
+      - name: 3 - Sertifika ve Profil Otomasyonu (Kodla Cozum)
         script: |
-          # Bu komut Apple tarafındaki tüm profilleri temizler ve yenisini tescil eder
+          # Bu komut Apple'a gider ve her seyi sifirdan kurar
           app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create --clean
           keychain add-certificates
       - name: 4 - iOS IPA Dosyasi Uret
         script: |
-          # Artik her sey sifirlandi, tertemiz paket cikariyoruz
+          # Imzalamayi burada manuel tetikliyoruz
           xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
     artifacts:
       - build/ios/ipa/*.ipa
