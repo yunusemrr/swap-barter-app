@@ -25,5 +25,10 @@ workflows:
         script: |
           # Bu komut paneldeki entegrasyonu kullanarak imzayı atar
           xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+      - name: 4 - Apple Sertifikalarini Otomatik Olustur ve Yukle
+        script: |
+          # Bu komut senin yerine Apple'a gider, sertifika yoksa kendisi olusturur ve indirir
+          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
     artifacts:
       - build/ios/ipa/*.ipa
