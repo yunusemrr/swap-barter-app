@@ -1,0 +1,18 @@
+workflows:
+  ios-capacitor-build:
+    name: Swap Barter iOS Build
+    instance_type: mac_mini_m1
+    environment:
+      node: latest
+      xcode: latest
+    scripts:
+      - name: Paketi ve Bagimliliklari Kur
+        script: npm install
+      - name: Web Kodlarini Derle
+        script: npm run build
+      - name: Capacitor ile iOS'a Aktar
+        script: npx cap sync ios
+      - name: iOS Uygulamasini Insa Et
+        script: |
+          cd ios/App
+          xcodebuild build -workspace App.xcworkspace -scheme App -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO

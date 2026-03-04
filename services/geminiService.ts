@@ -13,7 +13,7 @@ export const generateProductDescription = async (
     try {
         // ÇÖZÜM: 'models/' ön ekini ekleyerek tam yol tanımlıyoruz
         const model = genAI.getGenerativeModel({ 
-            model: "models/gemini-1.5-flash" 
+            model: "gemini-1.5-flash" 
         });
 
         // Prompt (Komut) - Tek cümle sorununu çözen zenginleştirilmiş komut
