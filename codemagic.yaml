@@ -2,33 +2,70 @@ workflows:
   ios-capacitor-build:
     name: Swap Barter iOS Build
     instance_type: mac_mini_m1
+    max_build_duration: 60
     environment:
       groups:
         - AppleKeys 
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Hazırlık
+      - name: 1 - Hazırlık ve Web Derleme
         script: |
           npm install
           npm run build
           npx cap sync ios
-      - name: 2 - Sertifika ve Profil Çözücü (Base64 Decode)
+      - name: 2 - Sertifika ve Profil Hazırlığı (Base64 Çözücü)
         script: |
-          # Kodları tekrar dosyaya çeviriyoruz
+          # 1. Metin kodlarını tekrar gerçek dosyalara çeviriyoruz
           echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
           echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
           
-          # Keychain'e ekle
+          # 2. Anahtar Zincirini kur
           keychain initialize
           keychain add-certificates --certificate /tmp/cert.p12 --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # Profile klasörüne taşı
+          # 3. İzin Belgesini (Profile) sisteme yükle
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
-      - name: 3 - Paketleme
+          
+          # 4. Profil içinden UUID ve İsim bilgilerini çek (Paketleme için şart)
+          PROFILE_UUID=$(grep -aA1 "UUID" /tmp/profile.mobileprovision | grep -o "[-A-Z0-9]\{36\}")
+          PROFILE_NAME=$(security cms -D -i /tmp/profile.mobileprovision | grep -aA1 "Name" | grep string | sed -e 's/<string>//' -e 's/<\/string>//' -e 's/^[[:space:]]*//')
+          
+          echo "export PROFILE_UUID=\"$PROFILE_UUID\"" >> $CM_ENV
+          echo "export PROFILE_NAME=\"$PROFILE_NAME\"" >> $CM_ENV
+          echo "✅ Profil Tanımlandı: $PROFILE_NAME"
+      - name: 3 - Export Options (Paketleme Ayarı) Oluştur
         script: |
-          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App
+          # Hata aldığın o eksik dosyayı şimdi elinle oluşturuyoruz
+          cat > /Users/builder/export_options.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$XCODE_APP_ID</key>
+              <string>$PROFILE_UUID</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+          echo "✅ Paketleme ayarları hazır."
+      - name: 4 - iOS IPA Paketleme (FİNAL)
+        script: |
+          # Artık hem dosyalar hem de ayarlar yerinde!
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --export-options-plist "/Users/builder/export_options.plist" \
+            --archive-flags "PROVISIONING_PROFILE=\"$PROFILE_UUID\" PROVISIONING_PROFILE_SPECIFIER=\"$PROFILE_NAME\" CODE_SIGN_STYLE=Manual"
     artifacts:
       - build/ios/ipa/*.ipa
