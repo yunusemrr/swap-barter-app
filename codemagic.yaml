@@ -5,7 +5,7 @@ workflows:
     max_build_duration: 60
     environment:
       groups:
-        - AppleKeys # Paneldeki grup adıyla (image_bdaa9c.png) birebir AYNI olmalı
+        - AppleKeys 
       node: latest
       xcode: latest
       vars:
@@ -13,37 +13,34 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
     scripts:
-      - name: 1 - Hazırlık ve Web Derleme
+      - name: 1 - Bağımlılıkları Yükle ve Web Derleme
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Platform Senkronizasyon
+      - name: 2 - iOS Platform Senkronizasyon (Capacitor)
         script: |
           npx cap sync ios
-      - name: 3 - Manuel Sertifika ve Profil Kurulumu (Kesin Çözüm)
+      - name: 3 - Manuel Sertifika ve Profil Kurulumu
         script: |
-          # 1. Anahtar Zincirini Hazırla
+          # 1. Anahtar Zinciri Hazırlığı
           keychain initialize
           
-          # 2. Sertifikayı (.p12) Kur
-          # Paneldeki dosya değişkenini doğrudan kullanıyoruz
+          # 2. Sertifika (.p12) Kurulumu
           keychain add-certificates \
             --certificate "$CM_CERTIFICATE" \
             --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
-          # 3. Provisioning Profile (.mobileprovision) Kur
-          # Komut hatası almamak için dosyayı doğrudan Apple'ın aradığı gizli klasöre kopyalıyoruz
+          # 3. Provisioning Profile Kurulumu (Manuel Kopyalama)
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp "$CM_PROVISIONING_PROFILE" "$PROFILES_DIR/"
-          
-          echo "✅ Sertifika ve Profil başarıyla yüklendi!"
-      - name: 4 - iOS IPA Paketleme (İmzalama)
+          echo "✅ Sertifika ve Profil hazır!"
+      - name: 4 - iOS IPA Paketleme (Final)
         script: |
-          # Uygulamayı senin imzanla App Store formatında paketler
+          # Hatalı olan '--export-method' kısmını kaldırdık. 
+          # Xcode, yüklediğimiz profilleri otomatik olarak eşleştirecek.
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --export-method app-store
+            --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
