@@ -4,28 +4,33 @@ workflows:
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
-      # BURASI ÇOK KRİTİK: Panelde oluşturduğun grubun adını buraya yazmalısın
       groups:
-        - AppleKeys 
+        - AppleKeys # Buranın paneldeki isimle AYNI olduğundan (büyük/küçük harf) emin ol!
       node: latest
       xcode: latest
       vars:
         XCODE_APP_ID: "com.swapbarter.app"
     scripts:
-      - name: 1 - Hazirlik ve Derleme
+      - name: 1 - Hazirlik
         script: |
           npm install
           npm run build
-      - name: 2 - iOS Platform Kurulumu
+      - name: 2 - iOS Platform
         script: |
           rm -rf ios
           npm install @capacitor/ios
           npx cap add ios
           npx cap sync ios
-      - name: 3 - Apple Sertifika ve Profil Otomasyonu
+      - name: 3 - Apple Sertifika ve Profil (Tam Yetki)
         script: |
-          # Liste boş olduğu için bu komut otomatik olarak yeni sertifika üretecek
-          app-store-connect fetch-signing-files "$XCODE_APP_ID" --type IOS_APP_STORE --create
+          # Anahtarlari panelden okumasi icin zorluyoruz
+          app-store-connect fetch-signing-files "$XCODE_APP_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key "$APP_STORE_CONNECT_PRIVATE_KEY"
+          
           keychain add-certificates
       - name: 4 - iOS IPA Paketleme
         script: |
