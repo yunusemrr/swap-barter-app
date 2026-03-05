@@ -21,22 +21,18 @@ workflows:
 
       - name: 2 - iOS Signing & Build
         script: |
-          # Base64 → gerçek dosyalar
           echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
           echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
 
-          # Keychain kur
           keychain initialize
           keychain add-certificates \
             --certificate /tmp/cert.p12 \
             --certificate-password "$CM_CERTIFICATE_PASSWORD"
 
-          # Profile kopyala
           PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILES_DIR"
           cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
 
-          # UUID çek
           PROFILE_UUID=$(/usr/libexec/PlistBuddy \
             -c 'Print :UUID' \
             /dev/stdin \
@@ -44,7 +40,6 @@ workflows:
 
           echo "✅ Profile UUID: $PROFILE_UUID"
 
-          # Detaylı xcodebuild ile archive (hata görmek için)
           xcodebuild \
             -project ios/App/App.xcodeproj \
             -scheme "$XCODE_SCHEME" \
@@ -54,10 +49,8 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="$(security cms -D -i /tmp/profile.mobileprovision | grep -A1 'TeamIdentifier' | grep string | sed 's/.*<string>\(.*\)<\/string>/\1/' | tr -d '[:space:]')" \
             2>&1
 
-          # export_options.plist oluştur
           cat > /tmp/export_options.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -76,7 +69,6 @@ workflows:
           </plist>
           EOF
 
-          # IPA üret
           xcodebuild \
             -exportArchive \
             -archivePath /tmp/App.xcarchive \
@@ -87,19 +79,13 @@ workflows:
       - name: 3 - App Store Connect Upload
         script: |
           echo $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY | base64 --decode > /tmp/api_key.p8
-          
+
           xcrun altool --upload-app \
             -f /tmp/ipa/App.ipa \
-            --apiKey $APP_STORE_CONNECT_KEY_IDENTIFIER \
-            --apiIssuer $APP_STORE_CONNECT_ISSUER_ID \
-            --apiKey-path /tmp/api_key.p8
-            
+            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --apiKey-path /tmp/api_key.p8 \
+            --type ios
+
     artifacts:
       - /tmp/ipa/*.ipa
-
-    publishing:
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
