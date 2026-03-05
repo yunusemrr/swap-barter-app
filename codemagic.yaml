@@ -10,14 +10,16 @@ workflows:
         XCODE_APP_ID: "com.swapbarter.app"
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
+        XCODE_CONFIGURATION: "Release"
+
     scripts:
-      - name: 1 - Hazırlık ve Web Derleme
+      - name: 1 - Node ve Web Build
         script: |
           npm install
           npm run build
           npx cap sync ios
 
-      - name: 2 - Full iOS Signing & Build
+      - name: 2 - iOS Signing & Build
         script: |
           # Base64 → gerçek dosyalar
           echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
@@ -34,13 +36,26 @@ workflows:
           mkdir -p "$PROFILES_DIR"
           cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
 
-          # UUID'yi düzgün çek (tek satır, trim edilmiş)
+          # UUID çek
           PROFILE_UUID=$(/usr/libexec/PlistBuddy \
             -c 'Print :UUID' \
             /dev/stdin \
             <<< $(security cms -D -i /tmp/profile.mobileprovision))
 
           echo "✅ Profile UUID: $PROFILE_UUID"
+
+          # Detaylı xcodebuild ile archive (hata görmek için)
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath /tmp/App.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM="$(security cms -D -i /tmp/profile.mobileprovision | grep -A1 'TeamIdentifier' | grep string | sed 's/.*<string>\(.*\)<\/string>/\1/' | tr -d '[:space:]')" \
+            2>&1
 
           # export_options.plist oluştur
           cat > /tmp/export_options.plist << EOF
@@ -62,13 +77,19 @@ workflows:
           EOF
 
           # IPA üret
-          xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME" \
-            --export-options-plist "/tmp/export_options.plist" \
-            --archive-flags \
-              "PROVISIONING_PROFILE=$PROFILE_UUID \
-               CODE_SIGN_STYLE=Manual"
+          xcodebuild \
+            -exportArchive \
+            -archivePath /tmp/App.xcarchive \
+            -exportPath /tmp/ipa \
+            -exportOptionsPlist /tmp/export_options.plist \
+            2>&1
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - /tmp/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
