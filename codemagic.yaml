@@ -84,6 +84,16 @@ workflows:
             -exportOptionsPlist /tmp/export_options.plist \
             2>&1
 
+      - name: 3 - App Store Connect Upload
+        script: |
+          echo $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY | base64 --decode > /tmp/api_key.p8
+          
+          xcrun altool --upload-app \
+            -f /tmp/ipa/App.ipa \
+            --apiKey $APP_STORE_CONNECT_KEY_IDENTIFIER \
+            --apiIssuer $APP_STORE_CONNECT_ISSUER_ID \
+            --apiKey-path /tmp/api_key.p8
+            
     artifacts:
       - /tmp/ipa/*.ipa
 
