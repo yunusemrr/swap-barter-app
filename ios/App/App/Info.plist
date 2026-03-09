@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+<string>Takas yapabileceğiniz size en yakın ilanları gösterebilmemiz için konumunuza ihtiyacımız var.</string>
+
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>Uygulama arka plandayken bile çevrenizdeki takas fırsatlarından haberdar olabilmeniz için konum erişimi gereklidir.</string>
+
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Takas etmek istediğiniz ürünlerin fotoğraflarını yükleyebilmeniz için galerinize erişmemiz gerekiyor.</string>
     <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
