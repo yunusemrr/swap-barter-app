@@ -87,10 +87,5 @@ workflows:
             --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --type ios
-scripts:
-  - name: Set build number
-    script: |
-      agvtool new-version -all $BUILD_NUMBER
-
     artifacts:
       - /tmp/ipa/*.ipa
