@@ -3,6 +3,7 @@ workflows:
     name: Swap Barter iOS Build
     instance_type: mac_mini_m1
     max_build_duration: 60
+
     environment:
       groups:
         - AppleKeys
@@ -11,6 +12,10 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         XCODE_CONFIGURATION: "Release"
+      app_store_connect:
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        private_key: $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY
 
     scripts:
       - name: 1 - Node ve Web Build
@@ -76,16 +81,11 @@ workflows:
             -exportOptionsPlist /tmp/export_options.plist \
             2>&1
 
-      - name: 3 - App Store Connect Upload
-        script: |
-          # API key'i altool'un beklediği klasöre koy
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        cancel_previous_submissions: true
 
-          xcrun altool --upload-app \
-            -f /tmp/ipa/App.ipa \
-            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --type ios
     artifacts:
       - /tmp/ipa/*.ipa
