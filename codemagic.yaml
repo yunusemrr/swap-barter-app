@@ -12,10 +12,6 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         XCODE_CONFIGURATION: "Release"
-      app_store_connect:
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        private_key: $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY
 
     scripts:
       - name: 1 - Node ve Web Build
@@ -43,7 +39,7 @@ workflows:
             /dev/stdin \
             <<< $(security cms -D -i /tmp/profile.mobileprovision))
 
-          echo "✅ Profile UUID: $PROFILE_UUID"
+          echo "Profile UUID: $PROFILE_UUID"
 
           xcodebuild \
             -project ios/App/App.xcodeproj \
@@ -56,7 +52,7 @@ workflows:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             2>&1
 
-          cat > /tmp/export_options.plist << EOF
+          cat > /tmp/export_options.plist << 'PLIST_EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -65,14 +61,9 @@ workflows:
             <string>app-store</string>
             <key>signingStyle</key>
             <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>$XCODE_APP_ID</key>
-              <string>$PROFILE_UUID</string>
-            </dict>
           </dict>
           </plist>
-          EOF
+          PLIST_EOF
 
           xcodebuild \
             -exportArchive \
@@ -81,11 +72,23 @@ workflows:
             -exportOptionsPlist /tmp/export_options.plist \
             2>&1
 
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        cancel_previous_submissions: true
+      - name: 3 - App Store Connect Upload
+        script: |
+          mkdir -p ~/.appstoreconnect/private_keys
+
+          printf '%s' "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" \
+            | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8
+
+          echo "Key boyutu: $(wc -c < ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8) bytes"
+          echo "Key ilk satır: $(head -1 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8)"
+
+          xcrun altool --upload-app \
+            -f /tmp/ipa/App.ipa \
+            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --type ios \
+            --verbose
 
     artifacts:
       - /tmp/ipa/*.ipa
