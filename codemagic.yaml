@@ -41,6 +41,14 @@ workflows:
 
           echo "Profile UUID: $PROFILE_UUID"
 
+          # Profile adını da al (ExportOptions için)
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy \
+            -c 'Print :Name' \
+            /dev/stdin \
+            <<< $(security cms -D -i /tmp/profile.mobileprovision))
+
+          echo "Profile Name: $PROFILE_NAME"
+
           xcodebuild \
             -project ios/App/App.xcodeproj \
             -scheme "$XCODE_SCHEME" \
@@ -52,18 +60,35 @@ workflows:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             2>&1
 
-          cat > /tmp/export_options.plist << 'PLIST_EOF'
+          # ExportOptions.plist — profile adını dinamik olarak ekle
+          cat > /tmp/export_options.plist << PLIST_EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>app-store</string>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>579UCQCJ25</string>
             <key>signingStyle</key>
             <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.swapbarter.app</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>uploadBitcode</key>
+            <false/>
           </dict>
           </plist>
           PLIST_EOF
+
+          echo "ExportOptions.plist içeriği:"
+          cat /tmp/export_options.plist
 
           xcodebuild \
             -exportArchive \
