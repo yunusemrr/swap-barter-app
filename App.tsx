@@ -61,6 +61,8 @@
   const CITIES = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep", "Şanlıurfa", "Kocaeli", "Samsun", "Trabzon", "Eskişehir", "Mersin", "Diyarbakır"];
 
   const App = () => {
+      alert('APP BAŞLADI');
+
     // Uygulama ilk açıldığında izinleri istemek için fonksiyon
   const requestPermissions = async () => {
     try {
