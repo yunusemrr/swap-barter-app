@@ -8,8 +8,7 @@ const firebaseConfig = {
   projectId: "swap-barter2",
   storageBucket: "swap-barter2.firebasestorage.app",
   messagingSenderId: "473764891578",
-  appId: "1:473764891578:web:97a2a726fe9d114d026b83",
-  measurementId: "G-ZFB60GX49K"
+  appId: "1:473764891578:web:97a2a726fe9d114d026b83"
 };
 
 const app = initializeApp(firebaseConfig);
