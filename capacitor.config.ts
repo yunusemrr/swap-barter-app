@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
     limitsNavigationsToAppBoundDomains: false,
   },
   server: {
-    iosScheme: 'ionic',
+    iosScheme: 'app',
     allowNavigation: ['*']
   }
 };
