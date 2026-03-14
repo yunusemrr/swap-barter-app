@@ -1,9 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { getAnalytics } from "firebase/analytics";
 
-// Senin sağladığın Firebase konfigürasyonu
 const firebaseConfig = {
   apiKey: "AIzaSyDtv4aPJuIDP8r6xlJRBvunF17WePyIU8A",
   authDomain: "swap-barter2.firebaseapp.com",
@@ -14,10 +12,7 @@ const firebaseConfig = {
   measurementId: "G-ZFB60GX49K"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Services
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-export const analytics = getAnalytics(app);
