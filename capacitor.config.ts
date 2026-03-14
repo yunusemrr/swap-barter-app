@@ -6,16 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   ios: {
     contentInset: 'automatic',
+    limitsNavigationsToAppBoundDomains: false,
   },
   server: {
-    iosScheme: 'https',
-    allowNavigation: [
-      '*.firebaseapp.com',
-      '*.googleapis.com',
-      '*.firebase.com',
-      '*.firestore.googleapis.com',
-      '*.firebasestorage.app'
-    ]
+    iosScheme: 'ionic',
+    allowNavigation: ['*']
   }
 };
 
