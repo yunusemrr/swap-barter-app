@@ -61,8 +61,22 @@
   const CITIES = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep", "Şanlıurfa", "Kocaeli", "Samsun", "Trabzon", "Eskişehir", "Mersin", "Diyarbakır"];
 
   const App = () => {
-      alert('APP BAŞLADI');
-
+useEffect(() => {
+  const test = async () => {
+    alert('TEST BAŞLIYOR');
+    try {
+      const promise = getDocs(collection(db, 'products'));
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT - 10 saniye geçti')), 10000)
+      );
+      const snapshot = await Promise.race([promise, timeout]) as any;
+      alert('BAŞARILI! Ürün sayısı: ' + snapshot.size);
+    } catch (error: any) {
+      alert('HATA: ' + error.message);
+    }
+  };
+  test();
+}, []);
     // Uygulama ilk açıldığında izinleri istemek için fonksiyon
   const requestPermissions = async () => {
     try {
