@@ -53,7 +53,7 @@
 
   // Firebase Imports
   import { db, auth } from './firebaseConfig';
-  import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
+  import { getDocs,collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
   import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
   // Bu değişken App bileşeninin DIŞINDA olmalı!
 
@@ -341,7 +341,16 @@
   );
   // GEÇICI DEBUG - Sorun bulduktan sonra sil
 useEffect(() => {
-  alert('USEEFFECT ÇALIŞTI');
+  const test = async () => {
+    alert('FIREBASE TEST BAŞLIYOR');
+    try {
+      const snapshot = await getDocs (collection(db, 'products'));
+      alert('BAŞARILI! Ürün sayısı: ' + snapshot.size);
+    } catch (error: any) {
+      alert('HATA: ' + error.message);
+    }
+  };
+  test();
 }, []);
 
     useEffect(() => {
