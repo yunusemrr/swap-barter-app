@@ -341,16 +341,7 @@
   );
   // GEÇICI DEBUG - Sorun bulduktan sonra sil
 useEffect(() => {
-  const debugFirebase = async () => {
-    try {
-      const { getDocs, collection: col } = await import('firebase/firestore');
-      const snapshot = await getDocs(col(db, 'products'));
-      alert('Firebase OK! Ürün sayısı: ' + snapshot.size);
-    } catch (error: any) {
-      alert('Firebase HATA: ' + error.message + ' | Code: ' + error.code);
-    }
-  };
-  setTimeout(debugFirebase, 3000); // 3 saniye bekle, uygulama açılsın
+  alert('USEEFFECT ÇALIŞTI');
 }, []);
 
     useEffect(() => {
