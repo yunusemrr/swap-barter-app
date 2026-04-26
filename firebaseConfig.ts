@@ -3,12 +3,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDtv4aPJuIDP8r6xlJRBvunF17WePyIU8A",
-  authDomain: "swap-barter2.firebaseapp.com",
-  projectId: "swap-barter2",
-  storageBucket: "swap-barter2.firebasestorage.app",
-  messagingSenderId: "473764891578",
-  appId: "1:473764891578:web:97a2a726fe9d114d026b83"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);

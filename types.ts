@@ -13,6 +13,9 @@ export interface Product {
   location?: string;
   userAvatar?: string;
   userName?: string;
+  featured?: boolean;
+  featuredUntil?: any; // Firestore Timestamp or Date
+  featuredCity?: string | null;
 }
 
 export interface User {
@@ -30,6 +33,10 @@ export interface Match {
   otherProductId: string;
   otherUser: User;
   timestamp: number;
+  status?: 'pending' | 'in_progress' | 'completed';
+  confirmedBy?: string[];
+  user1Id?: string;
+  user2Id?: string;
 }
 
 export interface Offer {
@@ -42,4 +49,4 @@ export interface Offer {
   timestamp: number;
 }
 
-export type ViewState = 'auth' | 'home' | 'upload' | 'swipe' | 'matches' | 'profile' | 'settings' | 'user-profile' | 'chat' | 'blocked-users';
+export type ViewState = 'auth' | 'home' | 'upload' | 'swipe' | 'matches' | 'profile' | 'settings' | 'user-profile' | 'chat' | 'blocked-users' | 'boost';

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:web": "vite build --base /",
+    "build:mobile": "vite build --base ./",
+    "preview": "vite preview",
+    "deploy:web": "npm run build:web && firebase deploy --only hosting:swap-barter2"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",

@@ -1,0 +1,71 @@
+[33mcfe653b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m izinler değişti
+[33mdfc5833[m s
+[33mb3ff263[m karışmıs dosyaları düzeltrim
+[33m083bf2e[m DENEME
+[33m2086c84[m kontrol
+[33m785cf00[m deneme
+[33madb45db[m Add temporary debug for Firebase connection and alert product count
+[33mde9e1cc[m Add iOS server configuration and update Info.plist for App Transport Security
+[33me1ea50e[m Remove measurementId from Firebase configuration
+[33m4e0a40a[m Remove unused Firebase Analytics import and comments from configuration
+[33m5498562[m Refactor Codemagic configuration to streamline build number handling and remove unnecessary comments
+[33mf1a1825[m ios firebase bağlantısı
+[33m01e0d56[m Enhance App Store Connect upload process with dynamic provisioning profile name and updated ExportOptions.plist
+[33m830ba55[m logo ios
+[33m138c268[m apple icon
+[33mf57bae4[m Refactor App Store Connect upload process and clean up Codemagic configuration
+[33m8f0a976[m Refactor Codemagic configuration for App Store Connect integration and streamline publishing process
+[33m798cfcb[m Refactor code structure for improved readability and maintainability
+[33mf32d233[m Implement feature X to enhance user experience and fix bug Y in module Z
+[33m717f88f[m versiyon güncellemsi
+[33md2af1c7[m Remove build number setting script from Codemagic configuration
+[33mf39497e[m build nummer artı 1
+[33mf38f2c6[m ios kamera eksik izinler eklendi
+[33mde8ad21[m Add location and photo library usage descriptions to Info.plist
+[33mbac5127[m Update App Store Connect upload step to use new API key storage location
+[33m6940696[m son
+[33m6992c6b[m Add App Store Connect upload step to Codemagic workflow
+[33mfa94128[m Fix API key variable name in Codemagic YAML for publishing configuration
+[33me9e553c[m Refactor Codemagic YAML for improved script clarity and organization
+[33ma252c9d[m Refactor Codemagic YAML for improved script clarity and organization
+[33m2bb1806[m Refactor Codemagic YAML for improved script clarity and organization
+[33m4fc810e[m Refactor Codemagic YAML for improved script clarity and organization
+[33m56116ab[m Refactor Codemagic YAML for improved script organization and clarity
+[33m20bdd37[m Refactor Codemagic YAML for improved script names and comments clarity
+[33meb6a54b[m Refactor Codemagic YAML for improved script names and comments clarity
+[33m002002b[m Refactor Codemagic YAML for improved script clarity and organization
+[33m3247a16[m Refactor Codemagic YAML for improved script names and clarity
+[33mdb69db5[m Refactor Codemagic YAML for improved script names and comments clarity
+[33m11ae717[m Refactor Codemagic YAML for improved script names and comments clarity
+[33m09f3a01[m ios
+[33m0fc2f82[m Refactor Codemagic YAML for improved script names and clarity in comments
+[33mb0f9d88[m Refactor Codemagic YAML for improved script names and comments clarity
+[33m64aade9[m Refactor Codemagic YAML for improved clarity in script names and comments
+[33mf258e7f[m Refactor Codemagic YAML for clarity and consistency in script names and comments
+[33m5346e83[m Update comments in codemagic.yaml for clarity on group name and certificate automation
+[33ma81d13b[m son apple
+[33mb92f546[m apple
+[33mfbb3c36[m apple key elle girildi
+[33mebfbea7[m Remove ios_signing block and update script descriptions in codemagic.yaml
+[33mcc9de79[m seltifika
+[33m27107df[m apple imza
+[33mae00712[m apple seltifikası güncellendi
+[33m2be44ec[m otomatik imzalama aktif edildi
+[33maf75273[m apple seltifikaları eklendi
+[33m9804064[m Capacitor 8 SPM modern derleme planina gecildi
+[33m1139c1c[m Adimli ve guvenli uretim plani eklendi
+[33m467e779[m codemacig dosyası
+[33m618c0b2[m iOS klasoru tum icerigiyle eklendi
+[33mea5d4e3[m 1
+[33m0e27569[m Sifirdan uretim plani eklendi
+[33m6da8442[m ios a göre kofirge edildi
+[33m470b75d[m iOS klasoru zorla eklendi
+[33m63d370a[m Zorunlu iOS kurulum paketi eklendi
+[33m9be2f9f[m son ios güncellemeri
+[33m2124ed1[m iOS klasörü düzeltildi
+[33ma9a9e78[m ios için güncellemeler yapıldı
+[33m74d2e68[m ios dosyaları eklendi
+[33m01cb1ef[m codemacig tanımlama dosyası eklendi
+[33m8bd112f[m uygulamyaı ios için optimize edildi ve hatalar giderildi
+[33m1b106a4[m feat: Implement core app functionality
+[33m2408917[m Initial commit
