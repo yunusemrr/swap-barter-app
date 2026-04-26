@@ -156,7 +156,7 @@ export function UploadScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <form onSubmit={handleUploadSubmit} className="space-y-6">
+        <form onSubmit={handleUploadSubmit} className="space-y-6 pb-24">
           <div>
             <label className="block text-sm font-bold text-zinc-500 mb-2">Fotoğraflar</label>
             <div className="flex gap-3 overflow-x-auto pb-2">
@@ -257,7 +257,7 @@ export function UploadScreen() {
             type="submit" disabled={isUploading}
             className="w-full bg-[#00592e] text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-transform disabled:opacity-50"
           >
-            {isUploading ? 'Kaydediliyor...' : 'Yayınla'}
+            {isUploading ? 'Kaydediliyor...' : editingProductId ? 'Güncelle' : 'İlanı Kaydet'}
           </button>
         </form>
 

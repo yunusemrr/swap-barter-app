@@ -16,6 +16,7 @@ export interface Product {
   featured?: boolean;
   featuredUntil?: any; // Firestore Timestamp or Date
   featuredCity?: string | null;
+  swapped?: boolean;
 }
 
 export interface User {

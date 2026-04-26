@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, RefreshCw, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { staggerContainer, staggerItem } from '../../animations/variants';
 import { db } from '../../../firebaseConfig';
-import { addDoc, collection, serverTimestamp, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, updateDoc, doc, getDoc, increment } from 'firebase/firestore';
 import { Match, Offer, User } from '../../../types';
 import { useAppContext } from '../../context/AppContext';
 
@@ -40,7 +40,17 @@ export function MatchesScreen() {
         status: 'pending', confirmedBy: [],
         user1Id: currentUser.id, user2Id: offer.fromUserId,
       };
-      const ref = await addDoc(collection(db, 'matches'), matchData);
+      await Promise.all([
+        updateDoc(doc(db, 'users', currentUser.id), { swapCount: increment(1) }),
+        updateDoc(doc(db, 'users', offer.fromUserId), { swapCount: increment(1) }),
+      ]);
+      setCurrentUser(prev => prev ? { ...prev, swapCount: (prev.swapCount || 0) + 1 } : prev);
+
+      const [ref] = await Promise.all([
+        addDoc(collection(db, 'matches'), matchData),
+        updateDoc(doc(db, 'products', offer.myProductId), { swapped: true }),
+        updateDoc(doc(db, 'products', offer.offeredProductId), { swapped: true }),
+      ]);
       const newMatchObj: Match = {
         id: ref.id, myProductId: offer.myProductId,
         otherProductId: offer.offeredProductId, otherUser, timestamp: Date.now(),

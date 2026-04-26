@@ -26,6 +26,7 @@ export function SwapScreen() {
     const candidates = marketProducts.filter(p =>
       p.userId !== currentUser.id &&
       !blockedUsers.some(u => u.id === p.userId) &&
+      !p.swapped &&
       p.price >= myProduct.price * (1 - range) &&
       p.price <= myProduct.price * (1 + range)
     );
@@ -120,9 +121,9 @@ export function SwapScreen() {
                     <p className="text-[#ffab00]/80 text-xs">Seçtiğin ürünün değerine yakın ilanları senin için bulup getireceğiz.</p>
                   </div>
                 </div>
-                <h3 className="font-bold text-zinc-900 dark:text-white mb-4">Ürünlerim ({myProducts.length})</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-white mb-4">Ürünlerim ({myProducts.filter(p => !p.swapped).length})</h3>
                 <div className="space-y-3 pb-20">
-                  {myProducts.map(p => (
+                  {myProducts.filter(p => !p.swapped).map(p => (
                     <div
                       key={p.id}
                       onClick={() => startSwapSession(p)}

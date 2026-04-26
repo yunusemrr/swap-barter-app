@@ -110,18 +110,29 @@ export function ProfileScreen() {
         {profileTab === 'my' ? (
           <div className="grid grid-cols-2 gap-4">
             {myProducts.map(p => (
-              <div key={p.id} onClick={() => setSelectedProduct(p)} className="bg-zinc-50 dark:bg-zinc-800 rounded-2xl overflow-hidden cursor-pointer relative group">
+              <div
+                key={p.id}
+                onClick={() => !p.swapped && setSelectedProduct(p)}
+                className={`bg-zinc-50 dark:bg-zinc-800 rounded-2xl overflow-hidden relative group ${p.swapped ? 'cursor-default' : 'cursor-pointer'}`}
+              >
                 <img src={p.image} className="aspect-square object-cover" />
+                {p.swapped && (
+                  <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center rounded-2xl">
+                    <span className="text-white font-black text-sm tracking-wide bg-[#00592e]/80 px-3 py-1.5 rounded-full uppercase">Takaslandı</span>
+                  </div>
+                )}
                 <div className="p-3">
                   <p className="font-bold text-sm truncate dark:text-white">{p.title}</p>
-                  <p className="text-emerald-500 font-bold text-xs">{p.price.toLocaleString('tr-TR')} TL</p>
+                  <p className={`font-bold text-xs ${p.swapped ? 'text-zinc-400' : 'text-emerald-500'}`}>{p.price.toLocaleString('tr-TR')} TL</p>
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); handleMyProductAction('delete', p); }}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={14} />
-                </button>
+                {!p.swapped && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleMyProductAction('delete', p); }}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             ))}
             <button
