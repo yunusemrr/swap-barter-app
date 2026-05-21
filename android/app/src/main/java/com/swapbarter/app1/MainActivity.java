@@ -1,4 +1,4 @@
-package com.swapbarter.app;
+package com.swapbarter.app1;
 
 import com.getcapacitor.BridgeActivity;
 
