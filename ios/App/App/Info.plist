@@ -3,21 +3,19 @@
 <plist version="1.0">
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-<string>Takas yapabileceğiniz size en yakın ilanları gösterebilmemiz için konumunuza ihtiyacımız var.</string>
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>Uygulama arka plandayken bile çevrenizdeki takas fırsatlarından haberdar olabilmeniz için konum erişimi gereklidir.</string>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>Takas etmek istediğiniz ürünlerin fotoğraflarını yükleyebilmeniz için galerinize erişmemiz gerekiyor.</string>
-<key>NSCameraUsageDescription</key>
-<string>Ürün fotoğrafı çekmek için kamera erişimi gereklidir.</string>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>Ürün fotoğrafı seçmek için galeri erişimi gereklidir.</string>
-    <key>CAPACITOR_DEBUG</key>
+	<string>Takas yapabileceğiniz size en yakın ilanları gösterebilmemiz için konumunuza ihtiyacımız var.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Uygulama arka plandayken bile çevrenizdeki takas fırsatlarından haberdar olabilmeniz için konum erişimi gereklidir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ürün fotoğrafı seçmek için galeri erişimi gereklidir.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ürün fotoğrafı çekmek için kamera erişimi gereklidir.</string>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Swap-barter-app</string>
+	<string>Swap Barter</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -57,17 +55,42 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-  <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true/>
-    </dict>
-<key>NSAppTransportSecurity</key>
-<dict>
-    <key>NSAllowsArbitraryLoads</key>
-    <true/>
-    <key>NSAllowsArbitraryLoadsInWebContent</key>
-    <true/>
-</dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>firebaseio.com</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<false/>
+			</dict>
+			<key>googleapis.com</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<false/>
+			</dict>
+			<key>firebaseapp.com</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>
