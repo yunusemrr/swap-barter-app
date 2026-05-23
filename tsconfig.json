@@ -11,7 +11,13 @@
     ],
     "skipLibCheck": true,
     "noImplicitAny": false,
-    "suppressImplicitAnyIndexErrors": true,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
     "types": [
       "node",
       "vite/client" 
@@ -36,5 +42,4 @@
     "*.tsx",
     "vite-env.d.ts"
   ]
-  
 }
