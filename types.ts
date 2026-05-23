@@ -17,6 +17,7 @@ export interface Product {
   featuredUntil?: any; // Firestore Timestamp or Date
   featuredCity?: string | null;
   swapped?: boolean;
+  
 }
 
 export interface User {
@@ -26,6 +27,9 @@ export interface User {
   email?: string;
   location?: string;
   swapCount?: number;
+  eulaAccepted?: boolean;        
+  eulaAcceptedDate?: string;    
+  blocked?: string[];           
 }
 
 export interface Match {

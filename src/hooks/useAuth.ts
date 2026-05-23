@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { User, ViewState } from '../../types';
 import { ConfirmationModalState } from '../context/AppContext';
 
+
 interface UseAuthParams {
   email: string;
   password: string;
@@ -55,9 +56,33 @@ export function useAuth({
     setAuthLoading(true);
     setAuthError('');
     try {
+      console.log('[Login] Attempting login with:', email);
       await signInWithEmailAndPassword(auth, email, password);
+      
+      // Kullanıcı bilgisini çek ve EULA kontrol et
+      const user = auth.currentUser;
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as User;
+          
+          // EULA kabul etmemişse uyar
+          if (!userData.eulaAccepted) {
+            console.log('[Login] EULA not accepted');
+            setAuthError('Lütfen şartları kabul edin.');
+            setAuthLoading(false);
+            return;
+          }
+        }
+      }
+      
+      console.log('[Login] Success!');
       window.location.reload();
-    } catch {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[Login] Failed:', errorMsg);
       setAuthError('Giriş başarısız. E-posta veya şifre hatalı.');
       setAuthLoading(false);
     }
@@ -68,15 +93,26 @@ export function useAuth({
     setAuthLoading(true);
     setAuthError('');
     try {
+      console.log('[Signup] Attempting signup with:', email);
       const cred = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('[Signup] User created:', cred.user.uid);
+      
       const newUser: User = {
-        id: cred.user.uid, name, email,
+        id: cred.user.uid,
+        name,
+        email,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cred.user.uid}`,
-        location: 'İstanbul', swapCount: 0,
+        location: 'İstanbul',
+        swapCount: 0,
+        eulaAccepted: true,                    // ✅ EULA kabul edilmiş
+        eulaAcceptedDate: new Date().toISOString(),  // ✅ Tarih kaydet
       };
+      
       await setDoc(doc(db, 'users', cred.user.uid), newUser);
+      console.log('[Signup] User doc saved with EULA accepted');
       window.location.reload();
     } catch (err: any) {
+      console.error('[Signup] Failed:', err.message);
       setAuthError('Kayıt başarısız. ' + err.message);
       setAuthLoading(false);
     }
@@ -148,5 +184,7 @@ function buildFallbackUser(firebaseUser: { uid: string; email: string | null }):
     email: firebaseUser.email || '',
     location: 'İstanbul',
     swapCount: 0,
+    eulaAccepted: false,  // ✅ Yeni kullanıcılar varsayılan olarak false
+    eulaAcceptedDate: undefined,
   };
 }

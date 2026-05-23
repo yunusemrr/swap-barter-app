@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Camera } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,8 @@ import { ChatScreen } from './src/components/screens/ChatScreen';
 import { ProductDetail } from './src/components/screens/ProductDetail';
 import { UserProfileScreen } from './src/components/screens/UserProfileScreen';
 import { BoostScreen } from './src/components/screens/BoostScreen';
+import { EulaModal } from './src/components/EulaModal';
+import { db, auth } from './firebaseConfig';
 
 const BANNER_COLORS: Record<string, string> = {
   info: 'bg-blue-500',
@@ -28,8 +30,24 @@ const BANNER_COLORS: Record<string, string> = {
   error: 'bg-red-500',
 };
 
-function AppRouter() {
+function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula }: any) {
   const { view, authLoading, bannerContent, setBannerContent, selectedProduct } = useAppContext();
+
+  // ===== C) EULA KONTROLÜ - login/signup göstermeden ÖNCE =====
+  if (showEula && !eulaAccepted) {
+    return (
+      <EulaModal
+        isOpen={true}
+        onAccept={() => {
+          setEulaAccepted(true);
+          setShowEula(false);
+        }}
+        onReject={() => {
+          alert('Şartları kabul etmelisiniz.');
+        }}
+      />
+    );
+  }
 
   if (authLoading) {
     return (
@@ -52,11 +70,10 @@ function AppRouter() {
   }
 
   return (
-    /* Masaüstünde koyu gri arka plan + ortalanmış telefon kutusu */
     <div className="min-h-screen bg-white dark:bg-zinc-900 md:bg-zinc-200 md:dark:bg-zinc-950 md:flex md:items-center md:justify-center font-sans text-zinc-900">
       <div className="relative w-full h-[100dvh] md:max-w-[430px] md:h-[90vh] md:max-h-[920px] md:rounded-[2.5rem] md:overflow-hidden md:shadow-2xl md:shadow-black/30 bg-white dark:bg-zinc-900">
 
-        {/* Top banner (sohbet / kullanıcı profili) */}
+        {/* Top banner */}
         <AnimatePresence>
           {bannerContent && (
             <motion.div
@@ -75,13 +92,13 @@ function AppRouter() {
           )}
         </AnimatePresence>
 
-        {/* Global overlay bileşenler */}
+        {/* Global overlay components */}
         <ConfirmationModal />
         <FilterModal />
         {selectedProduct && <ProductDetail />}
         <MatchToast />
 
-        {/* Ekranlar */}
+        {/* Screens */}
         <div className="h-full pb-20 overflow-hidden relative">
           <AnimatePresence mode="wait">
             <motion.div
@@ -114,19 +131,30 @@ function AppRouter() {
 }
 
 const App = () => {
+  // ===== B) EULA STATE'LERİ =====
+  const [showEula, setShowEula] = useState(true);
+  const [eulaAccepted, setEulaAccepted] = useState(false);
+
   useEffect(() => {
     const requestPermissions = async () => {
       try {
         await Camera.requestPermissions();
         await Geolocation.requestPermissions();
-      } catch (e) { console.warn('İzin hatası:', e); }
+      } catch (e) {
+        console.warn('İzin hatası:', e);
+      }
     };
     requestPermissions();
   }, []);
 
   return (
     <AppContextProvider>
-      <AppRouter />
+      <AppRouter
+        showEula={showEula}
+        eulaAccepted={eulaAccepted}
+        setEulaAccepted={setEulaAccepted}
+        setShowEula={setShowEula}
+      />
     </AppContextProvider>
   );
 };

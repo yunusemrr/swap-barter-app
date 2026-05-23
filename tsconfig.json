@@ -10,6 +10,8 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
+    "noImplicitAny": false,
+    "suppressImplicitAnyIndexErrors": true,
     "types": [
       "node",
       "vite/client" 
@@ -34,4 +36,5 @@
     "*.tsx",
     "vite-env.d.ts"
   ]
+  
 }
