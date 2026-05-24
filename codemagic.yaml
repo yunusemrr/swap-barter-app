@@ -1,123 +1,123 @@
-  workflows:
-    ios-capacitor-build:
-      name: Swap Barter iOS Build
-      instance_type: mac_mini_m1
-      max_build_duration: 60
+workflows:
+  ios-capacitor-build:
+    name: Swap Barter iOS Build
+    instance_type: mac_mini_m1
+    max_build_duration: 60
 
-      environment:
-        groups:
-          - AppleKeys
-        vars:
-          XCODE_APP_ID: "com.swapbarter.app"
-          XCODE_PROJECT: "ios/App/App.xcodeproj"
-          XCODE_SCHEME: "App"
-          XCODE_CONFIGURATION: "Release"
+    environment:
+      groups:
+        - AppleKeys
+      vars:
+        XCODE_APP_ID: "com.swapbarter.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+        XCODE_CONFIGURATION: "Release"
 
-      scripts:
-        - name: 1 - Node ve Web Build
-          script: |
-            npm install
-            npm run build
-            npx cap sync ios
+    scripts:
+      - name: 1 - Node ve Web Build
+        script: |
+          npm install
+          npm run build
+          npx cap sync ios
 
-        - name: 2 - iOS Signing & Build
-          script: |
-            echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
-            echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
+      - name: 2 - iOS Signing & Build
+        script: |
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/cert.p12
+          echo $CM_PROVISIONING_PROFILE | base64 --decode > /tmp/profile.mobileprovision
 
-            keychain initialize
-            keychain add-certificates \
-              --certificate /tmp/cert.p12 \
-              --certificate-password "$CM_CERTIFICATE_PASSWORD"
+          keychain initialize
+          keychain add-certificates \
+            --certificate /tmp/cert.p12 \
+            --certificate-password "$CM_CERTIFICATE_PASSWORD"
 
-            PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-            mkdir -p "$PROFILES_DIR"
-            cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          cp /tmp/profile.mobileprovision "$PROFILES_DIR/"
 
-            PROFILE_UUID=$(/usr/libexec/PlistBuddy \
-              -c 'Print :UUID' \
-              /dev/stdin \
-              <<< $(security cms -D -i /tmp/profile.mobileprovision))
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy \
+            -c 'Print :UUID' \
+            /dev/stdin \
+            <<< $(security cms -D -i /tmp/profile.mobileprovision))
 
-            echo "Profile UUID: $PROFILE_UUID"
+          echo "Profile UUID: $PROFILE_UUID"
 
-            PROFILE_NAME=$(/usr/libexec/PlistBuddy \
-              -c 'Print :Name' \
-              /dev/stdin \
-              <<< $(security cms -D -i /tmp/profile.mobileprovision))
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy \
+            -c 'Print :Name' \
+            /dev/stdin \
+            <<< $(security cms -D -i /tmp/profile.mobileprovision))
 
-            echo "Profile Name: $PROFILE_NAME"
+          echo "Profile Name: $PROFILE_NAME"
 
-            # Build numarasını Codemagic build numarasıyla otomatik artır
-            BUILD_NUMBER=BUILD_NUMBER=$((PROJECT_BUILD_NUMBER + 1))
+          # Build numarasını otomatik artır
+          BUILD_NUMBER=$((PROJECT_BUILD_NUMBER + 1))
 
-            echo "Build Number: $BUILD_NUMBER"
+          echo "Build Number: $BUILD_NUMBER"
 
-            /usr/libexec/PlistBuddy \
-              -c "Set :CFBundleVersion $BUILD_NUMBER" \
-              ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleVersion $BUILD_NUMBER" \
+            ios/App/App/Info.plist
 
-            xcodebuild \
-              -project ios/App/App.xcodeproj \
-              -scheme "$XCODE_SCHEME" \
-              -configuration Release \
-              -archivePath /tmp/App.xcarchive \
-              archive \
-              CODE_SIGN_STYLE=Manual \
-              PROVISIONING_PROFILE="$PROFILE_UUID" \
-              CODE_SIGN_IDENTITY="Apple Distribution" \
-              2>&1
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath /tmp/App.xcarchive \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            2>&1
 
-            cat > /tmp/export_options.plist << PLIST_EOF
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
+          cat > /tmp/export_options.plist << PLIST_EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>579UCQCJ25</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
             <dict>
-              <key>method</key>
-              <string>app-store-connect</string>
-              <key>teamID</key>
-              <string>579UCQCJ25</string>
-              <key>signingStyle</key>
-              <string>manual</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                <key>com.swapbarter.app</key>
-                <string>${PROFILE_NAME}</string>
-              </dict>
-              <key>stripSwiftSymbols</key>
-              <true/>
-              <key>uploadSymbols</key>
-              <true/>
-              <key>uploadBitcode</key>
-              <false/>
+              <key>com.swapbarter.app</key>
+              <string>${PROFILE_NAME}</string>
             </dict>
-            </plist>
-            PLIST_EOF
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>uploadBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          PLIST_EOF
 
-            xcodebuild \
-              -exportArchive \
-              -archivePath /tmp/App.xcarchive \
-              -exportPath /tmp/ipa \
-              -exportOptionsPlist /tmp/export_options.plist \
-              2>&1
+          xcodebuild \
+            -exportArchive \
+            -archivePath /tmp/App.xcarchive \
+            -exportPath /tmp/ipa \
+            -exportOptionsPlist /tmp/export_options.plist \
+            2>&1
 
-        - name: 3 - App Store Connect Upload
-          script: |
-            mkdir -p ~/.appstoreconnect/private_keys
+      - name: 3 - App Store Connect Upload
+        script: |
+          mkdir -p ~/.appstoreconnect/private_keys
 
-            printf '%s' "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" \
-              | base64 --decode \
-              > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8
+          printf '%s' "$APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY" \
+            | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8
 
-            echo "Key boyutu: $(wc -c < ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8) bytes"
-            echo "Key ilk satır: $(head -1 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8)"
+          echo "Key boyutu: $(wc -c < ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8) bytes"
+          echo "Key ilk satır: $(head -1 ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8)"
 
-            xcrun altool --upload-app \
-              -f /tmp/ipa/App.ipa \
-              --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-              --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-              --type ios \
-              --verbose
+          xcrun altool --upload-app \
+            -f /tmp/ipa/App.ipa \
+            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --type ios \
+            --verbose
 
-      artifacts:
-        - /tmp/ipa/*.ipa
+    artifacts:
+      - /tmp/ipa/*.ipa
