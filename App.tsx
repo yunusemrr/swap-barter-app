@@ -132,8 +132,15 @@ function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula }: any
 
 const App = () => {
   // ===== B) EULA STATE'LERİ =====
-  const [showEula, setShowEula] = useState(true);
-  const [eulaAccepted, setEulaAccepted] = useState(false);
+  const [showEula, setShowEula] = useState(() => {
+    // localStorage'dan başlangıç değerini oku
+    const saved = localStorage.getItem('eulaAccepted') === 'true';
+    return !saved; // Eğer accepted ise showEula false, değilse true
+  });
+  const [eulaAccepted, setEulaAccepted] = useState(() => {
+    return localStorage.getItem('eulaAccepted') === 'true';
+  });
+
   const pullRefreshRef = useRef<number>(0);
   const pullStartYRef = useRef<number>(0);
 
@@ -148,6 +155,13 @@ const App = () => {
     };
     requestPermissions();
   }, []);
+
+  // ===== EULA localStorage SYNC =====
+  useEffect(() => {
+    if (eulaAccepted) {
+      localStorage.setItem('eulaAccepted', 'true');
+    }
+  }, [eulaAccepted]);
 
   // ===== PULL-TO-REFRESH LOGIC =====
   useEffect(() => {
