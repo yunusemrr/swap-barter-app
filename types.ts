@@ -55,3 +55,28 @@ export interface Offer {
 }
 
 export type ViewState = 'auth' | 'home' | 'upload' | 'swipe' | 'matches' | 'profile' | 'settings' | 'user-profile' | 'chat' | 'blocked-users' | 'boost';
+// Report Interface
+export interface Report {
+  id: string;
+  reportedBy: string;                    // Kim bildirdi (userId)
+  reportedProduct: string;               // Hangi ürün (productId)
+  reportedProductTitle: string;          // Ürün adı
+  reportedUser: string;                  // Hangi kullanıcı (userId)
+  reportedUserName: string;              // Kullanıcı adı
+  reportReason: string;                  // Şikayet sebebi
+  reportReasonDetail?: string;           // Ek açıklama
+  timestamp: any;                        // Tarih
+  status: 'pending' | 'under_review' | 'resolved' | 'rejected';
+  adminNotes?: string;                   // Admin notları
+}
+
+// Report sebepleri
+export const REPORT_REASONS = [
+  'Ürün yasak veya sahte',
+  'Cinsel veya şiddet içeriği',
+  'Dolandırıcılık şüphesi',
+  'Spam veya reklam',
+  'Nefret söylemi',
+  'Kişisel bilgi ihlali',
+  'Diğer',
+] as const;

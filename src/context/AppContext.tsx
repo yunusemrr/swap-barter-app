@@ -6,6 +6,8 @@ import { Product, ViewState, Match, User, Offer } from '../../types';
 import { useAuth } from '../hooks/useAuth';
 import { useFirestore } from '../hooks/useFirestore';
 import { useBackHandler } from '../hooks/useBackHandler';
+import { db } from '../../firebaseConfig';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 export type ConfirmationModalState = {
   isOpen: boolean;
@@ -101,7 +103,7 @@ interface AppContextType {
   setEditProfileName: React.Dispatch<React.SetStateAction<string>>;
   editProfileAvatar: string;
   setEditProfileAvatar: React.Dispatch<React.SetStateAction<string>>;
-  profileFileInputRef: React.RefObject<HTMLInputElement>;
+  profileFileInputRef: React.RefObject<HTMLInputElement | null>;
   tempReturnProduct: Product | null;
   setTempReturnProduct: React.Dispatch<React.SetStateAction<Product | null>>;
   showLocationModal: boolean;
@@ -118,9 +120,9 @@ interface AppContextType {
   setIsUploading: React.Dispatch<React.SetStateAction<boolean>>;
   showPhotoOptions: boolean;
   setShowPhotoOptions: React.Dispatch<React.SetStateAction<boolean>>;
-  fileInputRef: React.RefObject<HTMLInputElement>;
-  cameraInputRef: React.RefObject<HTMLInputElement>;
-  chatFileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  cameraInputRef: React.RefObject<HTMLInputElement | null>;
+  chatFileInputRef: React.RefObject<HTMLInputElement | null>;
   imageToCrop: string | null;
   setImageToCrop: React.Dispatch<React.SetStateAction<string | null>>;
   crop: { x: number; y: number };
@@ -145,12 +147,16 @@ interface AppContextType {
   setSwapCandidates: React.Dispatch<React.SetStateAction<Product[]>>;
   newMatch: Match | null;
   setNewMatch: React.Dispatch<React.SetStateAction<Match | null>>;
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
   pullStartY: number;
   setPullStartY: React.Dispatch<React.SetStateAction<number>>;
   isTablet: boolean;
   boostProduct: Product | null;
   setBoostProduct: React.Dispatch<React.SetStateAction<Product | null>>;
+  showReportModal: boolean;
+  setShowReportModal: React.Dispatch<React.SetStateAction<boolean>>;
+  reportProduct: Product | null;
+  setReportProduct: React.Dispatch<React.SetStateAction<Product | null>>;
   // Cross-cutting handlers
   handleLogin: (e: React.FormEvent) => Promise<void>;
   handleSignup: (e: React.FormEvent) => Promise<void>;
@@ -248,6 +254,8 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [pullStartY, setPullStartY] = useState(0);
   const [isTablet, setIsTablet] = useState(window.innerWidth > 768);
   const [boostProduct, setBoostProduct] = useState<Product | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportProduct, setReportProduct] = useState<Product | null>(null);
 
   // Tablet resize listener
   useEffect(() => {
@@ -356,12 +364,46 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
 
   // --- Cross-cutting handlers ---
   const handleBlockUser = (userToBlock: User) => {
-    if (confirm('Bu kullanıcıyı engellemek istediğinize emin misiniz?')) {
-      setBlockedUsers(prev =>
-        prev.some(u => u.id === userToBlock.id) ? prev : [...prev, userToBlock]
-      );
-      setView('home');
-      setSelectedUser(null);
+    if (!currentUser) return;
+    
+    if (confirm(`${userToBlock.name} kullanıcısını engellemek istediğinize emin misiniz?`)) {
+      (async () => {
+        try {
+          console.log('[Block] Blocking user:', userToBlock.id);
+          
+          const userRef = doc(db, 'users', currentUser.id);
+          const blockedList = currentUser.blocked || [];
+          
+          // Zaten engellenmişse kaldır, değilse ekle
+          if (blockedList.includes(userToBlock.id)) {
+            // Engellemeyi kaldır
+            await updateDoc(userRef, {
+              blocked: arrayRemove(userToBlock.id),
+            });
+            
+            const updated = { ...currentUser, blocked: blockedList.filter(id => id !== userToBlock.id) };
+            setCurrentUser(updated);
+            console.log('[Block] User unblocked:', userToBlock.id);
+          } else {
+            // Engelle
+            await updateDoc(userRef, {
+              blocked: arrayUnion(userToBlock.id),
+            });
+            
+            const updated = { ...currentUser, blocked: [...blockedList, userToBlock.id] };
+            setCurrentUser(updated);
+            console.log('[Block] User blocked:', userToBlock.id);
+          }
+          
+          // UI'yi kapat
+          setView('home');
+          setSelectedUser(null);
+          setSelectedProduct(null);
+        } catch (err: any) {
+          console.error('[Block] Error:', err.message);
+          alert('Engelleme işlemi başarısız oldu.');
+        }
+      })();
     }
   };
 
@@ -441,6 +483,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       swapCandidates, setSwapCandidates, newMatch, setNewMatch,
       contentRef, pullStartY, setPullStartY, isTablet,
       boostProduct, setBoostProduct,
+      showReportModal, setShowReportModal, reportProduct, setReportProduct,
       handleLogin, handleSignup, handleForgotPassword, handleLogout, handleDeleteAccount,
       handleBlockUser, handleUnblockUser, handleBackFromUserProfile, handleImageError,
       handleClearFilters, handleApplyFilters, handleOpenChat,

@@ -1,9 +1,10 @@
 import React from 'react';
-import { ArrowLeft, Heart, UserX, CheckCircle, Edit, Trash2, Repeat, MessageCircle, ArrowRight, XCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Heart, UserX, CheckCircle, Edit, Trash2, Repeat, MessageCircle, ArrowRight, XCircle, Sparkles, AlertTriangle } from 'lucide-react';
 import { db } from '../../../firebaseConfig';
 import { addDoc, collection, deleteDoc, doc, updateDoc, query, where, getDocs, arrayUnion, increment } from 'firebase/firestore';
 import { User, Match } from '../../../types';
 import { useAppContext } from '../../context/AppContext';
+import { ReportModal } from '../ReportModal';
 
 export function ProductDetail() {
   const {
@@ -15,6 +16,8 @@ export function ProductDetail() {
     isDescriptionExpanded, setIsDescriptionExpanded,
     handleBlockUser, handleImageError,
     boostProduct, setBoostProduct,
+    showReportModal, setShowReportModal, reportProduct, setReportProduct,
+    setBannerContent,
   } = useAppContext();
 
   const [relatedMatch, setRelatedMatch] = React.useState<any>(null);
@@ -165,7 +168,20 @@ export function ProductDetail() {
           <Heart size={20} className={favorites.includes(selectedProduct.id) ? 'fill-red-500 text-red-500' : ''} />
         </button>
         {!isOwner && (
-          <button onClick={() => handleBlockUser(ownerObj)} className="absolute top-4 right-16 p-2.5 bg-white/20 backdrop-blur-md text-white rounded-full">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setReportProduct(selectedProduct);
+              setShowReportModal(true);
+            }}
+            className="absolute top-4 right-16 p-2.5 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/30 transition-colors active:scale-90"
+            title="Uygunsuz içeriği bildir"
+          >
+            <AlertTriangle size={20} />
+          </button>
+        )}
+        {!isOwner && (
+          <button onClick={() => handleBlockUser(ownerObj)} className="absolute top-4 right-28 p-2.5 bg-white/20 backdrop-blur-md text-white rounded-full hover:bg-white/30 transition-colors active:scale-90">
             <UserX size={20} />
           </button>
         )}
@@ -291,6 +307,25 @@ export function ProductDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && reportProduct && (
+        <ReportModal
+          isOpen={showReportModal}
+          productId={reportProduct.id}
+          productTitle={reportProduct.title}
+          reportedUserId={reportProduct.userId}
+          reportedUserName={reportProduct.userName || 'Satıcı'}
+          currentUserId={currentUser?.id || ''}
+          onClose={() => setShowReportModal(false)}
+          onSuccess={() => {
+            setBannerContent({
+              message: '✅ Şikayet başarıyla gönderildi. Teşekkürler!',
+              type: 'success',
+            });
+          }}
+        />
       )}
     </div>
   );

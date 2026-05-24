@@ -21,13 +21,22 @@ export function useFirestore({
   currentUser, activeMatch,
   setMarketProducts, setMyProducts, setMatches, setOffers, setChatHistory, setIsLoading,
 }: UseFirestoreParams) {
-  // Products listener
+  // Products listener - engellenen kullanıcıları filtrele
   useEffect(() => {
     if (!currentUser) return;
+    
     const q = query(collection(db, 'products'), orderBy('timestamp', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
-      setMarketProducts(all);
+      
+      // ✅ Engellenen kullanıcıları filtrele
+      const blockedUserIds = currentUser.blocked || [];
+      const filtered = all.filter((p: Product) => {
+        // Kendi ürünlerini ve engellenen kullanıcıların ürünlerini gizle
+        return p.userId !== currentUser.id && !blockedUserIds.includes(p.userId);
+      });
+      
+      setMarketProducts(filtered);
       setMyProducts(all.filter(p => p.userId === currentUser.id));
       setIsLoading(false);
     }, () => {
@@ -36,7 +45,7 @@ export function useFirestore({
       setIsLoading(false);
     });
     return () => unsub();
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.blocked]); // ✅ blocked dependency eklendi
 
   // Matches listener
   useEffect(() => {
@@ -57,7 +66,7 @@ export function useFirestore({
       setMatches(all);
     });
     return () => unsub();
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   // Offers listener
   useEffect(() => {
@@ -68,7 +77,7 @@ export function useFirestore({
       setOffers(all.filter(o => o.fromUserId === currentUser.id || o.toUserId === currentUser.id));
     });
     return () => unsub();
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   // Messages listener (depends on active chat)
   useEffect(() => {
@@ -86,5 +95,5 @@ export function useFirestore({
       })));
     });
     return () => unsub();
-  }, [activeMatch, currentUser]);
+  }, [activeMatch?.id, currentUser?.id]);
 }

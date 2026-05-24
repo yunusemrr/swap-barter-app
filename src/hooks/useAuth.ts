@@ -186,5 +186,6 @@ function buildFallbackUser(firebaseUser: { uid: string; email: string | null }):
     swapCount: 0,
     eulaAccepted: false,  // ✅ Yeni kullanıcılar varsayılan olarak false
     eulaAcceptedDate: undefined,
+     blocked: [],
   };
 }

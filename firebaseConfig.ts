@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+import type { Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -11,12 +13,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
-// Validate Firebase config
 const isValidConfig = Object.values(firebaseConfig).every(val => val !== '');
 
-let app;
-let db;
-let auth;
+let app: any;
+let db: Firestore;
+let auth: Auth;
 
 try {
   if (!isValidConfig) {
@@ -24,22 +25,20 @@ try {
   }
 
   app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
+  db = getFirestore(app) as Firestore;  // ✅ Type assertion
+  auth = getAuth(app) as Auth;          // ✅ Type assertion
 
-  // Optional: Use emulators in development
   if (import.meta.env.DEV && !auth.emulatorConfig) {
     try {
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
       connectFirestoreEmulator(db, 'localhost', 8080);
     } catch (error) {
-      // Emulator might already be initialized, that's ok
       console.log('Emulator already initialized or not available');
     }
   }
 } catch (error) {
   console.error('Firebase Initialization Error:', error);
-  // Fail gracefully - app won't work but won't crash
+  // Fallback - app won't work but won't crash
 }
 
 export { auth, db, app };
