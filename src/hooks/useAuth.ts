@@ -8,6 +8,20 @@ import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { User, ViewState } from '../../types';
 import { ConfirmationModalState } from '../context/AppContext';
 
+// EULA localStorage utilities
+const EULA_STORAGE_KEY = 'eulaAccepted';
+
+const markEulaAsAccepted = () => {
+  localStorage.setItem(EULA_STORAGE_KEY, 'true');
+};
+
+const hasEulaBeenAccepted = (): boolean => {
+  return localStorage.getItem(EULA_STORAGE_KEY) === 'true';
+};
+
+const clearEulaFlag = () => {
+  localStorage.removeItem(EULA_STORAGE_KEY);
+};
 
 interface UseAuthParams {
   email: string;
@@ -59,7 +73,6 @@ export function useAuth({
       console.log('[Login] Attempting login with:', email);
       await signInWithEmailAndPassword(auth, email, password);
       
-      // Kullanıcı bilgisini çek ve EULA kontrol et
       const user = auth.currentUser;
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
@@ -68,7 +81,6 @@ export function useAuth({
         if (userDoc.exists()) {
           const userData = userDoc.data() as User;
           
-          // EULA kabul etmemişse uyar
           if (!userData.eulaAccepted) {
             console.log('[Login] EULA not accepted');
             setAuthError('Lütfen şartları kabul edin.');
@@ -78,6 +90,7 @@ export function useAuth({
         }
       }
       
+      markEulaAsAccepted();
       console.log('[Login] Success!');
       window.location.reload();
     } catch (error) {
@@ -104,11 +117,12 @@ export function useAuth({
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cred.user.uid}`,
         location: 'İstanbul',
         swapCount: 0,
-        eulaAccepted: true,                    // ✅ EULA kabul edilmiş
-        eulaAcceptedDate: new Date().toISOString(),  // ✅ Tarih kaydet
+        eulaAccepted: true,
+        eulaAcceptedDate: new Date().toISOString(),
       };
       
       await setDoc(doc(db, 'users', cred.user.uid), newUser);
+      markEulaAsAccepted();
       console.log('[Signup] User doc saved with EULA accepted');
       window.location.reload();
     } catch (err: any) {
@@ -142,6 +156,7 @@ export function useAuth({
       type: 'normal',
       onConfirm: async () => {
         try { await signOut(auth); } catch {}
+        clearEulaFlag();
         setCurrentUser(null);
         setEmail('');
         setPassword('');
@@ -163,6 +178,7 @@ export function useAuth({
           const fbUser = auth.currentUser;
           if (fbUser) try { await fbUser.delete(); } catch {}
           await signOut(auth);
+          clearEulaFlag();
           setCurrentUser(null);
           setView('auth');
           alert('Hesabınız silindi.');
@@ -184,8 +200,8 @@ function buildFallbackUser(firebaseUser: { uid: string; email: string | null }):
     email: firebaseUser.email || '',
     location: 'İstanbul',
     swapCount: 0,
-    eulaAccepted: false,  // ✅ Yeni kullanıcılar varsayılan olarak false
+    eulaAccepted: hasEulaBeenAccepted(),
     eulaAcceptedDate: undefined,
-     blocked: [],
+    blocked: [],
   };
 }
