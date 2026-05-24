@@ -45,6 +45,7 @@
   import { Camera } from '@capacitor/camera';
   import { generateProductDescription } from './services/geminiService';
   import { SwipeDeck } from './components/SwipeDeck';
+  
 
   // Firebase Imports
   import { db, auth } from './firebaseConfig';

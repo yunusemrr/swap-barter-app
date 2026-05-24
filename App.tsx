@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState , useRef } from 'react';
 import { Camera } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -134,6 +134,8 @@ const App = () => {
   // ===== B) EULA STATE'LERİ =====
   const [showEula, setShowEula] = useState(true);
   const [eulaAccepted, setEulaAccepted] = useState(false);
+  const pullRefreshRef = useRef<number>(0);
+  const pullStartYRef = useRef<number>(0);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -145,6 +147,43 @@ const App = () => {
       }
     };
     requestPermissions();
+  }, []);
+
+  // ===== PULL-TO-REFRESH LOGIC =====
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      pullStartYRef.current = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const pullDistance = e.touches[0].clientY - pullStartYRef.current;
+      
+      // Sayfa başında mı? (scroll position = 0)
+      if (window.scrollY === 0 && pullDistance > 100) {
+        pullRefreshRef.current = pullDistance;
+        
+        // Refresh göstergesi
+        if (pullDistance > 150) {
+          // Pull yeterli - refresh yap
+          window.location.reload();
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      pullRefreshRef.current = 0;
+      pullStartYRef.current = 0;
+    };
+
+    document.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
   }, []);
 
   return (
