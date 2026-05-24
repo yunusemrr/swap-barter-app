@@ -30,7 +30,7 @@ const BANNER_COLORS: Record<string, string> = {
   error: 'bg-red-500',
 };
 
-function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula }: any) {
+function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula, skipLoading }: any) {
   const { view, authLoading, bannerContent, setBannerContent, selectedProduct } = useAppContext();
 
   // ===== C) EULA KONTROLÜ - login/signup göstermeden ÖNCE =====
@@ -49,7 +49,8 @@ function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula }: any
     );
   }
 
-  if (authLoading) {
+  // ✅ skipLoading true ise loading gösterme
+  if (authLoading && !skipLoading) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#00592e]">
         <div className="text-white text-xl font-black italic animate-pulse uppercase">
@@ -133,13 +134,19 @@ function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula }: any
 const App = () => {
   // ===== B) EULA STATE'LERİ =====
   const [showEula, setShowEula] = useState(() => {
-    // localStorage'dan başlangıç değerini oku
     const saved = localStorage.getItem('eulaAccepted') === 'true';
-    return !saved; // Eğer accepted ise showEula false, değilse true
+    return !saved;
   });
   const [eulaAccepted, setEulaAccepted] = useState(() => {
     return localStorage.getItem('eulaAccepted') === 'true';
   });
+  const [skipLoading, setSkipLoading] = useState(false);
+
+  useEffect(() => {
+    if (eulaAccepted) {
+      setSkipLoading(true);
+    }
+  }, [eulaAccepted]);
 
   const pullRefreshRef = useRef<number>(0);
   const pullStartYRef = useRef<number>(0);
@@ -172,13 +179,10 @@ const App = () => {
     const handleTouchMove = (e: TouchEvent) => {
       const pullDistance = e.touches[0].clientY - pullStartYRef.current;
       
-      // Sayfa başında mı? (scroll position = 0)
       if (window.scrollY === 0 && pullDistance > 100) {
         pullRefreshRef.current = pullDistance;
         
-        // Refresh göstergesi
         if (pullDistance > 150) {
-          // Pull yeterli - refresh yap
           window.location.reload();
         }
       }
@@ -207,6 +211,7 @@ const App = () => {
         eulaAccepted={eulaAccepted}
         setEulaAccepted={setEulaAccepted}
         setShowEula={setShowEula}
+        skipLoading={skipLoading}
       />
     </AppContextProvider>
   );
