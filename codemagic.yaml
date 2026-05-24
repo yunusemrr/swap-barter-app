@@ -49,7 +49,8 @@
             echo "Profile Name: $PROFILE_NAME"
 
             # Build numarasını Codemagic build numarasıyla otomatik artır
-            BUILD_NUMBER=80
+            BUILD_NUMBER=BUILD_NUMBER=$((PROJECT_BUILD_NUMBER + 1))
+
             echo "Build Number: $BUILD_NUMBER"
 
             /usr/libexec/PlistBuddy \
