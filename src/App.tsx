@@ -43,12 +43,12 @@
   import { Geolocation } from '@capacitor/geolocation';
   import { CameraResultType, CameraSource } from '@capacitor/camera';
   import { Camera } from '@capacitor/camera';
-  import { generateProductDescription } from './services/geminiService';
+  import { generateProductDescription } from '../services/geminiService';
   import { SwipeDeck } from './components/SwipeDeck';
   
 
   // Firebase Imports
-  import { db, auth } from './firebaseConfig';
+  import { db, auth } from '../firebaseConfig';
   import { getDocs, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, getDoc, deleteDoc, updateDoc, where } from 'firebase/firestore';
   import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 
