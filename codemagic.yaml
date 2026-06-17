@@ -13,14 +13,19 @@ workflows:
         XCODE_SCHEME: "App"
         XCODE_CONFIGURATION: "Release"
         APP_VERSION: "1.01"
-        BUILD_NUMBER: "100"
+        BUILD_NUMBER: "101"
 
     scripts:
       - name: 1 - Node ve Web Build
         script: |
           npm install
           npm run build
+          # cap sync öncesi plist'i yedekle
+          cp ios/App/App/Info.plist /tmp/Info.plist.bak
           npx cap sync ios
+          # cap sync sonrası plist'i geri yükle
+          cp /tmp/Info.plist.bak ios/App/App/Info.plist
+          echo "Info.plist restored after cap sync"
 
       - name: 2 - iOS Signing & Build
         script: |
