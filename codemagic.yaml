@@ -103,6 +103,21 @@ workflows:
             -exportOptionsPlist /tmp/export_options.plist \
             2>&1
 
+          # IPA içindeki Info.plist'i güncelle
+          cd /tmp/ipa
+          mkdir -p /tmp/ipa_extracted
+          cp App.ipa /tmp/ipa_extracted/App.zip
+          cd /tmp/ipa_extracted
+          unzip -o App.zip
+          IPA_PLIST=$(find /tmp/ipa_extracted/Payload -name "Info.plist" | head -1)
+          echo "IPA plist path: $IPA_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$IPA_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.01" "$IPA_PLIST"
+          echo "IPA plist updated"
+          cd /tmp/ipa_extracted
+          zip -r /tmp/ipa/App.ipa Payload
+          cd /tmp
+
       - name: 3 - App Store Connect Upload
         script: |
           mkdir -p ~/.appstoreconnect/private_keys
