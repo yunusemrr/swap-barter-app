@@ -48,13 +48,9 @@ workflows:
 
           echo "Profile Name: $PROFILE_NAME"
 
-          # Codemagic build index'ini kullan - her build otomatik artar
+          # Codemagic build index'ini kullan
           BUILD_NUMBER=$CM_BUILD_NUMBER
           echo "Build Number: $BUILD_NUMBER"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleVersion $BUILD_NUMBER" \
-            ios/App/App/Info.plist
 
           xcodebuild \
             -project ios/App/App.xcodeproj \
@@ -65,6 +61,7 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1
 
           cat > /tmp/export_options.plist << PLIST_EOF
