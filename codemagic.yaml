@@ -48,14 +48,6 @@ workflows:
 
           echo "Profile Name: $PROFILE_NAME"
 
-          # Build numarasını otomatik artır
-          BUILD_NUMBER=$((PROJECT_BUILD_NUMBER + 1))
-
-          echo "Build Number: $BUILD_NUMBER"
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleVersion $BUILD_NUMBER" \
-            ios/App/App/Info.plist
 
           xcodebuild \
             -project ios/App/App.xcodeproj \
