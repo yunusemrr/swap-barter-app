@@ -12,6 +12,8 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         XCODE_CONFIGURATION: "Release"
+        APP_VERSION: "1.01"
+        BUILD_NUMBER: "96"
 
     scripts:
       - name: 1 - Node ve Web Build
@@ -48,9 +50,13 @@ workflows:
 
           echo "Profile Name: $PROFILE_NAME"
 
-          # Codemagic build index'ini kullan
-          BUILD_NUMBER=$CM_BUILD_NUMBER
-          echo "Build Number: $BUILD_NUMBER"
+          # cap sync sonrasi plist'i guncelle (cap sync ezebilir)
+          echo "Setting CFBundleVersion=$BUILD_NUMBER CFBundleShortVersionString=$APP_VERSION"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" ios/App/App/Info.plist
+          echo "Info.plist after update:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ios/App/App/Info.plist
 
           xcodebuild \
             -project ios/App/App.xcodeproj \
@@ -61,14 +67,7 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1
-
-          # Archive içindeki Info.plist'i güncelle
-          ARCHIVE_PLIST="/tmp/App.xcarchive/Products/Applications/App.app/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$ARCHIVE_PLIST"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.01" "$ARCHIVE_PLIST"
-          echo "Archive Info.plist updated: CFBundleVersion=$BUILD_NUMBER"
 
           cat > /tmp/export_options.plist << PLIST_EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -102,21 +101,6 @@ workflows:
             -exportPath /tmp/ipa \
             -exportOptionsPlist /tmp/export_options.plist \
             2>&1
-
-          # IPA içindeki Info.plist'i güncelle
-          cd /tmp/ipa
-          mkdir -p /tmp/ipa_extracted
-          cp App.ipa /tmp/ipa_extracted/App.zip
-          cd /tmp/ipa_extracted
-          unzip -o App.zip
-          IPA_PLIST=$(find /tmp/ipa_extracted/Payload -name "Info.plist" | head -1)
-          echo "IPA plist path: $IPA_PLIST"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$IPA_PLIST"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.01" "$IPA_PLIST"
-          echo "IPA plist updated"
-          cd /tmp/ipa_extracted
-          zip -r /tmp/ipa/App.ipa Payload
-          cd /tmp
 
       - name: 3 - App Store Connect Upload
         script: |
