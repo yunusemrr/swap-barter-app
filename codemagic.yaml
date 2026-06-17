@@ -13,7 +13,7 @@ workflows:
         XCODE_SCHEME: "App"
         XCODE_CONFIGURATION: "Release"
         APP_VERSION: "1.01"
-        BUILD_NUMBER: "96"
+        BUILD_NUMBER: "100"
 
     scripts:
       - name: 1 - Node ve Web Build
