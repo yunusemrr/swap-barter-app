@@ -64,6 +64,12 @@ workflows:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1
 
+          # Archive içindeki Info.plist'i güncelle
+          ARCHIVE_PLIST="/tmp/App.xcarchive/Products/Applications/App.app/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$ARCHIVE_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.01" "$ARCHIVE_PLIST"
+          echo "Archive Info.plist updated: CFBundleVersion=$BUILD_NUMBER"
+
           cat > /tmp/export_options.plist << PLIST_EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
