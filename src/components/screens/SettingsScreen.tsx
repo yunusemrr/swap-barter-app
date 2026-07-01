@@ -65,7 +65,7 @@ export function SettingsScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="px-6 py-4 flex items-center gap-4 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="px-6 flex items-center gap-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: '16px' }}>
         <button onClick={() => setView('profile')}><ArrowLeft className="dark:text-white" /></button>
         <h2 className="text-xl font-bold dark:text-white">Ayarlar</h2>
       </div>
@@ -170,7 +170,7 @@ export function BlockedUsersScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="px-6 py-4 flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="px-6 flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: '16px' }}>
         <button onClick={() => setView('settings')}><ArrowLeft className="dark:text-white" /></button>
         <h2 className="font-bold text-lg dark:text-white">Engellenen Kullanıcılar</h2>
       </div>

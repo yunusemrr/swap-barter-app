@@ -148,7 +148,7 @@ export function UploadScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="bg-[#00592e] p-6 pb-2 rounded-b-[35px] shadow-lg shadow-green-100 dark:shadow-none w-full mb-2">
+      <div className="bg-[#00592e] pb-2 rounded-b-[35px] shadow-lg shadow-green-100 dark:shadow-none w-full mb-2" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingLeft: '24px', paddingRight: '24px' }}>
         <h1 className="text-white text-3xl font-black italic uppercase drop-shadow-md">
           swap <span className="text-[#ffab00]">barter</span>
         </h1>

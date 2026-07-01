@@ -11,45 +11,61 @@ body {
   -webkit-user-select: none;
   user-select: none;
   overscroll-behavior: none;
+  background: #000;
 }
 
 /* Scrollbar Gizleme - Global */
 ::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 * {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  box-sizing: border-box;
 }
 
-/* Güvenli Alanlar (iPhone çentiği vb. için) */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
+/* ── Safe Area Utilities ── */
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
-/* Header z-index fix */
-header, .header {
-  z-index: 100 !important;
-  position: relative;
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mt-safe {
+  margin-top: env(safe-area-inset-top);
 }
 
-/* Buttons clickable */
-button, [role="button"] {
-  z-index: 10 !important;
-  pointer-events: auto !important;
+/* Header safe-area uzantısı: yeşil header'lar status bar'a kadar uzansın */
+.header-safe {
+  padding-top: calc(env(safe-area-inset-top) + 16px);
 }
 
-/* Tab buttons fix */
-.tab-button, [class*="tab"] {
-  pointer-events: auto !important;
-  cursor: pointer !important;
+/* Tam ekran için */
+.h-screen-safe {
+  height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 
 /* Input fix */
 input, textarea, select {
   pointer-events: auto !important;
+}
+
+/* Button fix */
+button, [role="button"] {
+  pointer-events: auto !important;
+}
+
+/* iOS momentum scroll */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* No scrollbar yardımcı sınıfı */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

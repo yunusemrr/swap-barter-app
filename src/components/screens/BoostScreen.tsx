@@ -113,7 +113,7 @@ export function BoostScreen() {
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-zinc-900 overflow-y-auto no-scrollbar">
       {/* Header */}
-      <div className="bg-[#00592e] p-6 pb-8 rounded-b-[35px] shadow-lg w-full">
+      <div className="bg-[#00592e] pb-8 rounded-b-[35px] shadow-lg w-full" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingLeft: '24px', paddingRight: '24px' }}>
         <button onClick={handleClose} className="mb-4 p-2 bg-white/20 text-white rounded-full w-fit">
           <ArrowLeft size={20} />
         </button>
@@ -209,22 +209,16 @@ export function BoostScreen() {
         </div>
       </div>
 
-      {/* Alt Ödeme Butonu */}
+      {/* Alt Ödeme Butonu - Yakında */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800">
         <button
-          onClick={handleStartPayment}
-          disabled={paymentState === 'loading'}
-          className="w-full py-4 bg-[#00592e] text-white font-black rounded-2xl text-lg shadow-lg active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center gap-2"
+          disabled
+          className="w-full py-4 bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 font-black rounded-2xl text-lg flex items-center justify-center gap-2 cursor-not-allowed"
         >
-          {paymentState === 'loading' ? (
-            <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              <Sparkles size={20} className="text-[#ffab00]" />
-              {paymentState === 'error' ? 'Tekrar Dene' : `Öde ve Öne Çıkar — ${BOOST_PRICE} TL`}
-            </>
-          )}
+          <Sparkles size={20} className="text-zinc-400" />
+          Yakında Geliyor
         </button>
+        <p className="text-center text-xs text-zinc-400 mt-2">Bu özellik çok yakında kullanıma açılacak.</p>
       </div>
 
       {/* PayTR iFrame Modal */}

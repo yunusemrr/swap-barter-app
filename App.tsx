@@ -72,7 +72,7 @@ function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula, skipL
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900 md:bg-zinc-200 md:dark:bg-zinc-950 md:flex md:items-center md:justify-center font-sans text-zinc-900">
-      <div className="relative w-full h-[100dvh] md:max-w-[430px] md:h-[90vh] md:max-h-[920px] md:rounded-[2.5rem] md:overflow-hidden md:shadow-2xl md:shadow-black/30 bg-white dark:bg-zinc-900">
+      <div className="relative w-full h-[100dvh] md:max-w-[430px] md:h-[90vh] md:max-h-[920px] md:rounded-[2.5rem] md:overflow-hidden md:shadow-2xl md:shadow-black/30 bg-white dark:bg-zinc-900 flex flex-col" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
         {/* Top banner */}
         <AnimatePresence>

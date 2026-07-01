@@ -143,7 +143,7 @@ export function ChatScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 shadow-sm z-10">
+      <div className="px-4 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 shadow-sm z-10 bg-white dark:bg-zinc-900" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: '12px' }}>
         <div className="flex items-center gap-3">
           <button onClick={() => setView('matches')}><ArrowLeft className="text-zinc-500 dark:text-white" /></button>
           <img src={activeMatch.otherUser.avatar} className="w-10 h-10 rounded-full object-cover" />

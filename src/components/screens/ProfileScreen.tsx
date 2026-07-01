@@ -54,7 +54,7 @@ export function ProfileScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="bg-[#00592e] p-6 pb-8 rounded-b-[40px] shadow-lg shadow-green-100 dark:shadow-none w-full relative">
+      <div className="bg-[#00592e] pb-8 rounded-b-[40px] shadow-lg shadow-green-100 dark:shadow-none w-full relative" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingLeft: '24px', paddingRight: '24px' }}>
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-white text-3xl font-black italic tracking-tighter uppercase">
             swap <span className="text-[#ffab00]">barter</span>

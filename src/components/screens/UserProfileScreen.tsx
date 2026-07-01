@@ -17,7 +17,7 @@ export function UserProfileScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="px-4 py-4 flex items-center gap-3">
+      <div className="px-4 flex items-center gap-3 bg-white dark:bg-zinc-900" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)', paddingBottom: '16px' }}>
         <button onClick={handleBackFromUserProfile} className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full">
           <ArrowLeft className="dark:text-white" />
         </button>

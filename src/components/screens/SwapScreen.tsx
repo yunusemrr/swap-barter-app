@@ -91,7 +91,7 @@ export function SwapScreen() {
 
   return (
     <div className="h-full flex flex-col bg-gray-50 dark:bg-zinc-900">
-      <div className="bg-[#00592e] p-6 pb-4 rounded-b-[35px] shadow-lg w-full mb-4">
+      <div className="bg-[#00592e] pb-4 rounded-b-[35px] shadow-lg w-full mb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingLeft: '24px', paddingRight: '24px' }}>
         <h2 className="text-xl font-black italic tracking-tighter text-white uppercase">Takas Keşfet</h2>
         <h3 className="text-xs font-black italic text-white uppercase opacity-80">hayalindeki ürüne parasız ulaş</h3>
       </div>

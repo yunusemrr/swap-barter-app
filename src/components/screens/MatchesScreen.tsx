@@ -76,7 +76,7 @@ export function MatchesScreen() {
 
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="bg-[#00592e] p-6 pb-4 rounded-b-[35px] shadow-lg w-full mb-4">
+      <div className="bg-[#00592e] pb-4 rounded-b-[35px] shadow-lg w-full mb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingLeft: '24px', paddingRight: '24px' }}>
         <h2 className="text-xl font-black italic tracking-tighter text-white uppercase mb-4">Gelen Kutusu</h2>
         <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
           <button

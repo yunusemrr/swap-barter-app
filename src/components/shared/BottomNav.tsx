@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Repeat, PlusCircle, MessageCircle, User as UserIcon } from 'lucide-react';
+import { Home, ArrowLeftRight, Plus, MessageCircle, User as UserIcon } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export function BottomNav() {
@@ -7,48 +7,79 @@ export function BottomNav() {
 
   if (view === 'chat' || selectedProduct) return null;
 
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 px-6 py-4 flex justify-between items-center z-40 pb-safe">
-      <button
-        onClick={() => setView('home')}
-        className={`flex flex-col items-center gap-1 ${view === 'home' ? 'text-[#ffab00]' : 'text-zinc-400'}`}
-      >
-        <Home size={24} className={view === 'home' ? 'fill-current' : ''} />
-        <span className="text-[10px] font-bold">Ana Sayfa</span>
-      </button>
+  const leftItems = [
+    { id: 'home',    Icon: Home,            label: 'Ana Sayfa' },
+    { id: 'swipe',   Icon: ArrowLeftRight,  label: 'Takasla' },
+  ];
+  const rightItems = [
+    { id: 'matches', Icon: MessageCircle,   label: 'Mesajlar' },
+    { id: 'profile', Icon: UserIcon,        label: 'Profil' },
+  ];
 
+  const NavBtn = ({ id, Icon, label }: { id: string; Icon: any; label: string }) => {
+    const isActive = view === id;
+    return (
       <button
-        onClick={() => setView('swipe')}
-        className={`flex flex-col items-center gap-1 ${view === 'swipe' ? 'text-[#ffab00]' : 'text-zinc-400'}`}
+        onClick={() => setView(id as any)}
+        className="flex flex-col items-center justify-center gap-1 flex-1 active:scale-95 transition-transform"
       >
-        <Repeat size={24} />
-        <span className="text-[10px] font-bold">Takasla</span>
-      </button>
-
-      <div className="relative -top-6">
-        <button
-          onClick={() => setView('upload')}
-          className="w-16 h-16 bg-[#00592e] rounded-full flex items-center justify-center text-white shadow-lg shadow-violet-200 dark:shadow-violet-900/50 hover:scale-105 transition-transform"
+        <Icon
+          size={22}
+          strokeWidth={2.1}
+          color={isActive ? '#F5A623' : '#9A9A92'}
+          fill={isActive ? '#F5A623' : 'none'}
+        />
+        <span
+          className="text-[11px]"
+          style={{
+            color: isActive ? '#F5A623' : '#9A9A92',
+            fontWeight: isActive ? 700 : 600,
+          }}
         >
-          <PlusCircle size={32} />
+          {label}
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <div
+      className="absolute bottom-0 left-0 right-0 z-40 flex items-start"
+      style={{
+        background: '#fff',
+        borderRadius: '28px 28px 44px 44px',
+        boxShadow: '0 -8px 24px -10px rgba(0,0,0,.14)',
+        padding: '13px 26px 0',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
+        minHeight: 86,
+      }}
+    >
+      {/* Left items */}
+      {leftItems.map(item => <NavBtn key={item.id} {...item} />)}
+
+      {/* Center FAB */}
+      <div className="flex flex-col items-center flex-1" style={{ marginTop: -30 }}>
+        <button
+          onClick={() => setView('upload' as any)}
+          className="flex items-center justify-center active:scale-95 transition-transform"
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            background: '#0F5A33',
+            border: '4px solid #fff',
+            boxShadow: '0 10px 22px -6px rgba(15,90,51,.6)',
+          }}
+        >
+          <Plus size={26} color="#fff" strokeWidth={2.4} />
         </button>
+        <span className="text-[11px] font-semibold mt-1" style={{ color: '#9A9A92' }}>
+          İlan Ver
+        </span>
       </div>
 
-      <button
-        onClick={() => setView('matches')}
-        className={`flex flex-col items-center gap-1 ${view === 'matches' ? 'text-[#ffab00]' : 'text-zinc-400'}`}
-      >
-        <MessageCircle size={24} className={view === 'matches' ? 'fill-current' : ''} />
-        <span className="text-[10px] font-bold">Mesajlar</span>
-      </button>
-
-      <button
-        onClick={() => setView('profile')}
-        className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-[#ffab00]' : 'text-zinc-400'}`}
-      >
-        <UserIcon size={24} className={view === 'profile' ? 'fill-current' : ''} />
-        <span className="text-[10px] font-bold">Profil</span>
-      </button>
+      {/* Right items */}
+      {rightItems.map(item => <NavBtn key={item.id} {...item} />)}
     </div>
   );
 }
