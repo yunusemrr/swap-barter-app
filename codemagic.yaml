@@ -12,8 +12,8 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         XCODE_CONFIGURATION: "Release"
-        APP_VERSION: "1.02"
-        BUILD_NUMBER: "102"
+        APP_VERSION: "1.03"
+        BUILD_NUMBER: "103"
 
     scripts:
       - name: 1 - Node ve Web Build
