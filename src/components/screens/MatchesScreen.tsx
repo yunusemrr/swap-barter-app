@@ -1,11 +1,23 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, RefreshCw, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { MessageCircle, RefreshCw, Clock, CheckCircle, XCircle, History, Search } from 'lucide-react';
 import { staggerContainer, staggerItem } from '../../animations/variants';
 import { db } from '../../../firebaseConfig';
 import { addDoc, collection, serverTimestamp, updateDoc, doc, getDoc, increment } from 'firebase/firestore';
 import { Match, Offer, User } from '../../../types';
 import { useAppContext } from '../../context/AppContext';
+
+function timeAgo(ts: any): string {
+  if (!ts) return 'şimdi';
+  const ms = typeof ts?.toMillis === 'function' ? ts.toMillis() : (typeof ts === 'number' ? ts : Date.now());
+  const diff = Math.max(0, Date.now() - ms);
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'şimdi';
+  if (min < 60) return `${min}dk önce`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}s önce`;
+  return `${Math.floor(hr / 24)}g önce`;
+}
 
 export function MatchesScreen() {
   const {
@@ -40,6 +52,7 @@ export function MatchesScreen() {
         status: 'pending', confirmedBy: [],
         user1Id: currentUser.id, user2Id: offer.fromUserId,
       };
+
       await Promise.all([
         updateDoc(doc(db, 'users', currentUser.id), { swapCount: increment(1) }),
         updateDoc(doc(db, 'users', offer.fromUserId), { swapCount: increment(1) }),
@@ -74,27 +87,67 @@ export function MatchesScreen() {
     setView('chat');
   };
 
+  const pendingCount = offers.filter(o => o.status === 'pending' && o.toUserId === currentUser?.id).length;
+
   return (
-    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
-      <div className="bg-[#00592e] pb-4 rounded-b-[35px] shadow-lg w-full mb-4" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingLeft: '24px', paddingRight: '24px' }}>
-        <h2 className="text-xl font-black italic tracking-tighter text-white uppercase mb-4">Gelen Kutusu</h2>
-        <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
+    <div className="h-full bg-[#F3F2EE] flex flex-col overflow-hidden">
+      {/* ── HEADER ── */}
+      <div
+        className="flex-shrink-0 w-full pb-5 px-6"
+        style={{
+          background: 'linear-gradient(160deg, #12693b 0%, #0b3f24 92%)',
+          borderRadius: '0 0 34px 34px',
+          paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-extrabold text-[22px] tracking-[-.4px]" style={{ color: '#fff' }}>Mesajlar</h2>
+            <p className="text-[12.5px] font-medium" style={{ color: 'rgba(255,255,255,.65)' }}>
+              {matchTab === 'messages' ? `${matches.length} sohbet` : `${offers.length} teklif`}
+            </p>
+          </div>
+          <button className="flex items-center justify-center active:scale-95 transition-transform" style={{ width: 38, height: 38 }}>
+            <History size={20} color="#fff" strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Segmented tabs */}
+        <div className="flex p-1" style={{ background: 'rgba(255,255,255,.14)', borderRadius: 13 }}>
           <button
             onClick={() => setMatchTab('messages')}
-            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${matchTab === 'messages' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500'}`}
+            className="flex-1 py-2.5 font-bold text-[13px] transition-all"
+            style={{
+              borderRadius: 10,
+              background: matchTab === 'messages' ? '#fff' : 'transparent',
+              color: matchTab === 'messages' ? '#0F5A33' : 'rgba(255,255,255,.75)',
+            }}
           >
             Mesajlar
           </button>
           <button
             onClick={() => setMatchTab('offers')}
-            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${matchTab === 'offers' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500'}`}
+            className="flex-1 py-2.5 font-bold text-[13px] transition-all relative"
+            style={{
+              borderRadius: 10,
+              background: matchTab === 'offers' ? '#fff' : 'transparent',
+              color: matchTab === 'offers' ? '#0F5A33' : 'rgba(255,255,255,.75)',
+            }}
           >
             Teklifler
+            {pendingCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 flex items-center justify-center font-extrabold"
+                style={{ width: 17, height: 17, borderRadius: '50%', background: '#F5A623', color: '#fff', fontSize: 9.5 }}
+              >
+                {pendingCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6">
+      <div className="flex-1 overflow-y-auto px-6 pb-24 pt-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={matchTab}
@@ -104,23 +157,68 @@ export function MatchesScreen() {
             transition={{ duration: 0.18 }}
           >
             {matchTab === 'messages' ? (
-              <motion.div variants={staggerContainer} initial="initial" animate="animate">
-                {matches.map(m => (
-                  <motion.div
-                    key={m.id}
-                    variants={staggerItem}
-                    onClick={() => handleOpenChat(m)}
-                    className="flex items-center gap-4 py-4 border-b border-zinc-100 dark:border-zinc-800 cursor-pointer"
-                  >
-                    <img src={m.otherUser.avatar} className="w-14 h-14 rounded-full object-cover" />
-                    <div className="flex-1">
-                      <h4 className="font-bold dark:text-white">{m.otherUser.name}</h4>
-                      <p className="text-sm text-zinc-500 truncate">{(m as any).lastMessage || 'Sohbeti açmak için dokun'}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
+              matches.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-20">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: '#F1F0EA' }}>
+                    <MessageCircle size={28} color="#9A9A92" />
+                  </div>
+                  <p className="font-bold text-[15px]" style={{ color: '#16241C' }}>Henüz sohbetin yok</p>
+                  <p className="text-[13px] mt-1" style={{ color: '#9A9A92' }}>Bir takas teklif ettiğinde burada görünecek</p>
+                </div>
+              ) : (
+                <motion.div variants={staggerContainer} initial="initial" animate="animate">
+                  {matches.map(m => {
+                    const relatedProduct = marketProducts.find(p => p.id === (m as any).otherProductId)
+                      || myProducts.find(p => p.id === (m as any).myProductId);
+                    return (
+                      <motion.div
+                        key={m.id}
+                        variants={staggerItem}
+                        onClick={() => handleOpenChat(m)}
+                        className="flex items-center gap-3 py-3 px-3 mb-2 cursor-pointer active:scale-[.98] transition-transform"
+                        style={{ background: '#fff', borderRadius: 18, boxShadow: '0 4px 14px -8px rgba(0,0,0,.12)' }}
+                      >
+
+                        <img
+                          src={m.otherUser.avatar}
+                          className="object-cover flex-shrink-0"
+                          style={{ width: 52, height: 52, borderRadius: 16 }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-[15px] truncate" style={{ color: '#16241C' }}>{m.otherUser.name}</h4>
+                            <span className="text-[11px] flex-shrink-0 ml-2" style={{ color: '#9A9A92' }}>
+                              {timeAgo((m as any).timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-[13px] truncate" style={{ color: '#9A9A92' }}>
+                            {(m as any).lastMessage || 'Sohbeti açmak için dokun'}
+                          </p>
+                          {relatedProduct && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <RefreshCw size={10} color="#0F5A33" />
+                              <span className="text-[11px] font-semibold truncate" style={{ color: '#0F5A33' }}>
+                                {relatedProduct.title} takası
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              )
             ) : (
+
+              offers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-20">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: '#F1F0EA' }}>
+                    <RefreshCw size={28} color="#9A9A92" />
+                  </div>
+                  <p className="font-bold text-[15px]" style={{ color: '#16241C' }}>Henüz teklifin yok</p>
+                  <p className="text-[13px] mt-1" style={{ color: '#9A9A92' }}>Bir ürüne takas teklif ettiğinde burada görünecek</p>
+                </div>
+              ) : (
               <motion.div variants={staggerContainer} initial="initial" animate="animate">
                 {offers.map(o => {
                   const isMyOffer = o.fromUserId === currentUser?.id;
@@ -132,93 +230,142 @@ export function MatchesScreen() {
                   const senderProduct = (isMyOffer ? myProducts : marketProducts).find(p => p.id === o.myProductId);
                   const receiverProduct = (isMyOffer ? marketProducts : myProducts).find(p => p.id === o.offeredProductId);
                   if (!senderProduct || !receiverProduct) return null;
+                  const myMiniProduct = isMyOffer ? senderProduct : receiverProduct;
+                  const otherMiniProduct = isMyOffer ? receiverProduct : senderProduct;
 
                   return (
-                    <motion.div key={o.id} variants={staggerItem} className="py-4 border-b border-zinc-100 dark:border-zinc-800">
-                      {/* Header */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <img src={otherUser?.avatar} className="w-10 h-10 rounded-full object-cover" />
-                        <div className="flex-1">
-                          <p className="font-bold text-sm dark:text-white">{otherUser?.name}</p>
-                          <p className="text-xs text-zinc-500">{isMyOffer ? 'Gönderilen Teklif' : 'Gelen Teklif'}</p>
+                    <motion.div
+                      key={o.id}
+                      variants={staggerItem}
+                      className="mb-3 p-4"
+                      style={{
+                        background: 'rgba(255,255,255,.6)',
+                        backdropFilter: 'blur(16px) saturate(1.3)',
+                        WebkitBackdropFilter: 'blur(16px) saturate(1.3)',
+                        border: '1px solid rgba(255,255,255,.7)',
+                        borderRadius: 22,
+                      }}
+                    >
+                      {/* Header row */}
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <img src={otherUser?.avatar} className="rounded-full object-cover flex-shrink-0" style={{ width: 36, height: 36 }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-[13.5px] truncate" style={{ color: '#16241C' }}>
+                            {otherUser?.name}{' '}
+                            <span className="font-medium" style={{ color: '#9A9A92' }}>
+                              {isMyOffer ? 'teklif gönderdin' : 'sana teklif gönderdi'} · {timeAgo((o as any).timestamp)}
+                            </span>
+                          </p>
                         </div>
-                        {/* Status badge */}
+
                         {o.status === 'pending' && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full text-[11px] font-bold">
-                            <Clock size={11} /> Beklemede
+                          <span className="flex items-center gap-1 flex-shrink-0 font-bold" style={{ fontSize: 10.5, color: '#E8890C', background: 'rgba(245,166,35,.15)', borderRadius: 20, padding: '4px 9px' }}>
+                            <Clock size={10} /> {isMyOffer ? 'Yanıt bekliyor' : 'Bekliyor'}
                           </span>
                         )}
                         {o.status === 'accepted' && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[11px] font-bold">
-                            <CheckCircle size={11} /> Onaylandı
+                          <span className="flex items-center gap-1 flex-shrink-0 font-bold" style={{ fontSize: 10.5, color: '#0F5A33', background: 'rgba(46,204,113,.15)', borderRadius: 20, padding: '4px 9px' }}>
+                            <CheckCircle size={10} /> Tamamlandı
                           </span>
                         )}
                         {o.status === 'rejected' && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 rounded-full text-[11px] font-bold">
-                            <XCircle size={11} /> {isMyOffer ? 'Olumsuz Takas' : 'Reddedildi'}
+                          <span className="flex items-center gap-1 flex-shrink-0 font-bold" style={{ fontSize: 10.5, color: '#C0392B', background: 'rgba(192,57,43,.12)', borderRadius: 20, padding: '4px 9px' }}>
+                            <XCircle size={10} /> Reddedildi
                           </span>
                         )}
                       </div>
 
-                      {/* Product comparison */}
-                      <div
-                        className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl mb-3 cursor-pointer"
-                        onClick={() => setSelectedProduct(isMyOffer ? receiverProduct : senderProduct)}
-                      >
-                        <div className="relative">
-                          <img src={isMyOffer ? senderProduct.image : receiverProduct.image} className="w-14 h-14 rounded-lg object-cover" />
-                          <div className="absolute -bottom-1 -left-1 bg-zinc-900 text-white text-[8px] px-1 rounded-sm font-bold">SENİN</div>
+                      {/* SENİN ⇄ ONUN comparison */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => setSelectedProduct(myMiniProduct)}
+                          style={{ background: '#fff', borderRadius: 14, padding: 8 }}
+                        >
+                          <div className="w-full overflow-hidden mb-1.5" style={{ height: 56, borderRadius: 10 }}>
+                            <img src={myMiniProduct.image || myMiniProduct.images?.[0]} className="w-full h-full object-cover" />
+                          </div>
+                          <p className="font-bold text-[11.5px] truncate" style={{ color: '#16241C' }}>{myMiniProduct.title}</p>
+                          <p className="font-extrabold text-[11.5px]" style={{ color: '#0F5A33' }}>
+                            {Number(myMiniProduct.price || 0).toLocaleString('tr-TR')} TL
+                          </p>
                         </div>
-                        <div className="flex flex-col items-center gap-1">
-                          <RefreshCw size={16} className="text-zinc-400" />
-                          <span className="text-[10px] text-zinc-400 font-bold">DEĞİŞİM</span>
+
+                        <div
+                          className="flex items-center justify-center flex-shrink-0"
+                          style={{
+                            width: 30, height: 30, borderRadius: '50%',
+                            background: o.status === 'accepted' ? '#0F5A33' : (o.status === 'rejected' ? '#CDCBC3' : '#0F5A33'),
+                          }}
+                        >
+                          <RefreshCw size={14} color="#fff" />
                         </div>
-                        <div className="relative">
-                          <img src={isMyOffer ? receiverProduct.image : senderProduct.image} className="w-14 h-14 rounded-lg object-cover" />
-                          <div className="absolute -bottom-1 -right-1 bg-[#00592e] text-white text-[8px] px-1 rounded-sm font-bold">TEKLİF</div>
+
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => setSelectedProduct(otherMiniProduct)}
+                          style={{ background: '#fff', borderRadius: 14, padding: 8 }}
+                        >
+                          <div className="w-full overflow-hidden mb-1.5" style={{ height: 56, borderRadius: 10 }}>
+                            <img src={otherMiniProduct.image || otherMiniProduct.images?.[0]} className="w-full h-full object-cover" />
+                          </div>
+                          <p className="font-bold text-[11.5px] truncate" style={{ color: '#16241C' }}>{otherMiniProduct.title}</p>
+                          <p className="font-extrabold text-[11.5px]" style={{ color: '#0F5A33' }}>
+                            {Number(otherMiniProduct.price || 0).toLocaleString('tr-TR')} TL
+                          </p>
                         </div>
                       </div>
 
-                      {/* Action buttons */}
-                      {isMyOffer ? (
-                        /* Sent offer — only show chat button when accepted */
-                        o.status === 'accepted' ? (
+                      {/* Actions */}
+                      {o.status === 'pending' && !isMyOffer && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleOfferResponse(o.id, 'rejected')}
+                            className="flex-1 py-2.5 font-bold text-[12.5px] active:scale-95 transition-transform"
+                            style={{ border: '1.5px solid #F1B3AB', color: '#C0392B', borderRadius: 13, background: 'transparent' }}
+                          >
+                            Reddet
+                          </button>
                           <button
                             onClick={() => handleStartChatFromOffer(o)}
-                            className="w-full py-3 bg-[#00592e] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                            className="flex-1 py-2.5 font-bold text-[12.5px] flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                            style={{ background: '#fff', color: '#16241C', borderRadius: 13 }}
                           >
-                            <MessageCircle size={14} /> Mesaj Gönder
+                            <MessageCircle size={13} /> Sohbet
                           </button>
-                        ) : null
-                      ) : (
-                        /* Received offer — show action buttons only when pending */
-                        o.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleOfferResponse(o.id, 'rejected')}
-                              className="flex-1 py-3 border border-red-200 dark:border-red-800 text-red-500 rounded-xl font-bold text-xs active:scale-95 transition-transform"
-                            >
-                              Reddet
-                            </button>
-                            <button
-                              onClick={() => handleStartChatFromOffer(o)}
-                              className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-transform"
-                            >
-                              <MessageCircle size={14} /> Sohbet
-                            </button>
-                            <button
-                              onClick={() => handleOfferResponse(o.id, 'accepted')}
-                              className="flex-[2] py-3 bg-[#00592e] text-white rounded-xl font-bold text-xs active:scale-95 transition-transform"
-                            >
-                              Kabul Et
-                            </button>
-                          </div>
-                        )
+                          <button
+                            onClick={() => handleOfferResponse(o.id, 'accepted')}
+                            className="flex-[1.4] py-2.5 text-white font-bold text-[12.5px] active:scale-95 transition-transform"
+                            style={{ background: 'linear-gradient(145deg,#12693b,#0b3f24)', borderRadius: 13 }}
+                          >
+                            Kabul Et
+                          </button>
+                        </div>
+                      )}
+
+                      {o.status === 'pending' && isMyOffer && (
+                        <button
+                          className="w-full py-2.5 font-bold text-[12.5px]"
+                          style={{ border: '1.5px solid #CDCBC3', color: '#6A6A62', borderRadius: 13, background: 'transparent' }}
+                        >
+                          Teklifi Geri Çek
+                        </button>
+                      )}
+
+                      {o.status === 'accepted' && (
+                        <button
+                          onClick={() => handleStartChatFromOffer(o)}
+                          className="w-full py-2.5 font-bold text-[12.5px] flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                          style={{ border: '1.5px solid #A9DDBB', color: '#0F5A33', borderRadius: 13, background: 'transparent' }}
+                        >
+                          <MessageCircle size={13} /> Mesaj Gönder
+                        </button>
                       )}
                     </motion.div>
                   );
                 })}
               </motion.div>
+              )
             )}
           </motion.div>
         </AnimatePresence>

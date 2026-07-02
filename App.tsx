@@ -100,7 +100,7 @@ function AppRouter({ showEula, eulaAccepted, setEulaAccepted, setShowEula, skipL
         <MatchToast />
 
         {/* Screens */}
-        <div className="h-full pb-20 overflow-hidden relative">
+        <div className="h-full pb-16 overflow-hidden relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={view}

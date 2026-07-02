@@ -46,11 +46,14 @@ export function BottomNav() {
     <div
       className="absolute bottom-0 left-0 right-0 z-40 flex items-start"
       style={{
-        background: '#fff',
+        background: 'rgba(255,255,255,.72)',
+        backdropFilter: 'blur(18px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(18px) saturate(1.4)',
+        borderTop: '1px solid rgba(255,255,255,.6)',
         borderRadius: '28px 28px 44px 44px',
         boxShadow: '0 -8px 24px -10px rgba(0,0,0,.14)',
-        padding: '13px 26px 0',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
+        padding: '10px 26px 0',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 4px)',
         minHeight: 86,
       }}
     >
@@ -66,7 +69,7 @@ export function BottomNav() {
             width: 60,
             height: 60,
             borderRadius: '50%',
-            background: '#0F5A33',
+            background: 'linear-gradient(145deg,#12693b,#0b3f24)',
             border: '4px solid #fff',
             boxShadow: '0 10px 22px -6px rgba(15,90,51,.6)',
           }}
